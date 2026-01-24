@@ -155,11 +155,69 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Filters Bar */
+        .filters-bar {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-label {
+            font-size: 0.6875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+        }
+
+        .filter-select {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.8125rem;
+            border-radius: 2px;
+            cursor: pointer;
+            min-width: 140px;
+        }
+
+        .filter-select:hover { border-color: var(--accent); }
+        .filter-select:focus { outline: none; border-color: var(--accent); }
+
+        .filter-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.8125rem;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .filter-toggle:hover { border-color: var(--accent); color: var(--text-primary); }
+        .filter-toggle.active { background: var(--score-high); color: var(--bg-primary); border-color: var(--score-high); }
+
+        .filter-toggle .toggle-icon {
+            font-size: 0.75rem;
+        }
+
         /* Profile Filter */
         .profile-filter {
             display: flex;
             gap: 0.5rem;
-            margin-bottom: 2rem;
             flex-wrap: wrap;
         }
 
@@ -753,8 +811,25 @@
 
         <!-- Dashboard View -->
         <div id="dashboard" class="view active">
-            <div class="profile-filter" id="profile-filter">
-                <button class="profile-btn active" data-profile="all">All Profiles</button>
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <span class="filter-label">Run Date</span>
+                    <select class="filter-select" id="date-filter" onchange="applyFilters()">
+                        <option value="all">All Dates</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Score</span>
+                    <button class="filter-toggle" id="score-filter" onclick="toggleScoreFilter()">
+                        <span class="toggle-icon">★</span> 50+ Only
+                    </button>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Profile</span>
+                    <div class="profile-filter" id="profile-filter">
+                        <button class="profile-btn active" data-profile="all">All Profiles</button>
+                    </div>
+                </div>
             </div>
 
             <div class="stats-grid">
@@ -858,6 +933,8 @@
         let profiles = {};
         let profilesConfig = {};
         let currentProfile = 'all';
+        let currentDateFilter = 'all';
+        let scoreFilter50Plus = false;
         let editingProfileId = null;
         let apiUrl = '';
 
@@ -1074,9 +1151,53 @@
             return jobs;
         }
 
-        function filterJobs(jobs, profileId) {
-            if (profileId === 'all') return jobs;
-            return jobs.filter(j => j.profileId === profileId || j.profile_id === profileId);
+        function filterJobs(jobs) {
+            let filtered = jobs;
+
+            // Filter by profile
+            if (currentProfile !== 'all') {
+                filtered = filtered.filter(j => j.profileId === currentProfile || j.profile_id === currentProfile);
+            }
+
+            // Filter by date
+            if (currentDateFilter !== 'all') {
+                filtered = filtered.filter(j => j.analyzed_date === currentDateFilter);
+            }
+
+            // Filter by score 50+
+            if (scoreFilter50Plus) {
+                filtered = filtered.filter(j => j.score >= 50);
+            }
+
+            return filtered;
+        }
+
+        function applyFilters() {
+            currentDateFilter = document.getElementById('date-filter').value;
+            const jobs = flattenJobs(allJobs);
+            const filtered = filterJobs(jobs);
+            updateStats(filtered);
+            renderJobs(filtered);
+        }
+
+        function toggleScoreFilter() {
+            scoreFilter50Plus = !scoreFilter50Plus;
+            const btn = document.getElementById('score-filter');
+            btn.classList.toggle('active', scoreFilter50Plus);
+            applyFilters();
+        }
+
+        function buildDateFilter(jobs) {
+            const select = document.getElementById('date-filter');
+            const dates = [...new Set(jobs.map(j => j.analyzed_date).filter(Boolean))].sort().reverse();
+
+            select.innerHTML = '<option value="all">All Dates</option>';
+            dates.forEach(date => {
+                const option = document.createElement('option');
+                option.value = date;
+                option.textContent = date;
+                select.appendChild(option);
+            });
         }
 
         function updateStats(jobs) {
@@ -1156,10 +1277,7 @@
             document.querySelectorAll('.profile-btn').forEach(b => {
                 b.classList.toggle('active', b.dataset.profile === profileId);
             });
-            const jobs = flattenJobs(allJobs);
-            const filtered = filterJobs(jobs, profileId);
-            updateStats(filtered);
-            renderJobs(filtered);
+            applyFilters();
         }
 
         async function loadDashboard() {
@@ -1179,9 +1297,9 @@
                     document.getElementById('last-updated').textContent = `Last scan: ${dates[0]}`;
                 }
 
+                buildDateFilter(jobs);
                 buildProfileFilter(jobs);
-                updateStats(jobs);
-                renderJobs(jobs);
+                applyFilters();
                 loadRunLog();
             } catch (error) {
                 loadRunLog();
