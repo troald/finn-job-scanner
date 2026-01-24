@@ -6,6 +6,8 @@ Automatically scans job listings and scores them against your profile using Clau
 
 import os
 import json
+import subprocess
+import glob
 import requests
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
@@ -17,6 +19,12 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import time
 import re
+from pathlib import Path
+
+# File to track previously analyzed jobs
+BASE_DIR = Path(__file__).parent
+ANALYZED_JOBS_FILE = BASE_DIR / "analyzed_jobs.json"
+AWS_CONFIG_FILE = BASE_DIR / "aws_dashboard_config.json"
 
 # Load configuration
 from config import (
@@ -27,6 +35,93 @@ from config import (
     MINIMUM_SCORE_TO_INCLUDE,
     MAX_JOBS_TO_ANALYZE,
 )
+
+
+def load_analyzed_jobs() -> dict:
+    """Load previously analyzed jobs from JSON file"""
+    if ANALYZED_JOBS_FILE.exists():
+        try:
+            with open(ANALYZED_JOBS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: Could not load analyzed jobs history: {e}")
+    return {}
+
+
+def save_analyzed_jobs(analyzed: dict):
+    """Save analyzed jobs to JSON file"""
+    with open(ANALYZED_JOBS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(analyzed, f, indent=2, ensure_ascii=False)
+
+
+def load_aws_config() -> dict:
+    """Load AWS dashboard configuration if it exists."""
+    if AWS_CONFIG_FILE.exists():
+        try:
+            with open(AWS_CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {}
+
+
+def upload_to_s3(local_path: str, s3_key: str, bucket: str, content_type: str = None):
+    """Upload a file to S3."""
+    cmd = ["aws", "s3", "cp", local_path, f"s3://{bucket}/{s3_key}"]
+    if content_type:
+        cmd.extend(["--content-type", content_type])
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    return result.returncode == 0
+
+
+def sync_to_cloud():
+    """Sync data to AWS S3 for the cloud dashboard."""
+    aws_config = load_aws_config()
+    if not aws_config:
+        return  # Cloud dashboard not configured
+
+    bucket = aws_config.get('bucket_name')
+    if not bucket:
+        return
+
+    print("\nSyncing to cloud dashboard...")
+
+    # Upload analyzed_jobs.json
+    if ANALYZED_JOBS_FILE.exists():
+        if upload_to_s3(str(ANALYZED_JOBS_FILE), "data/analyzed_jobs.json", bucket, "application/json"):
+            print("  Uploaded analyzed_jobs.json")
+
+    # Find and upload all reports
+    reports = []
+    for report_path in glob.glob(str(BASE_DIR / "job_report_*.md")):
+        filename = os.path.basename(report_path)
+        date_str = filename.replace('job_report_', '').replace('.md', '')
+        try:
+            date = datetime.strptime(date_str, '%Y%m%d')
+            reports.append({
+                'filename': filename,
+                'date': date.strftime('%Y-%m-%d'),
+                'date_display': date.strftime('%B %d, %Y'),
+            })
+            # Upload report
+            if upload_to_s3(report_path, f"data/reports/{filename}", bucket, "text/markdown"):
+                print(f"  Uploaded {filename}")
+        except ValueError:
+            continue
+
+    # Sort reports by date descending and upload index
+    reports.sort(key=lambda x: x['date'], reverse=True)
+    reports_index_path = BASE_DIR / "reports_index.json"
+    with open(reports_index_path, 'w') as f:
+        json.dump(reports, f, indent=2)
+
+    if upload_to_s3(str(reports_index_path), "data/reports_index.json", bucket, "application/json"):
+        print("  Uploaded reports_index.json")
+
+    # Clean up temp file
+    reports_index_path.unlink(missing_ok=True)
+
+    print(f"  Dashboard: {aws_config.get('cloudfront_url', 'N/A')}")
 
 
 @dataclass
@@ -312,20 +407,37 @@ def main():
     print("FINN.no Job Scanner - Starting daily scan")
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
-    
+
+    # Load previously analyzed jobs
+    analyzed_history = load_analyzed_jobs()
+    print(f"Loaded {len(analyzed_history)} previously analyzed jobs from history")
+
     # Step 1: Fetch job listings from FINN.no
     job_listings = fetch_finn_search_results(FINN_SEARCH_URL)
-    
+
     if not job_listings:
         print("No job listings found. Exiting.")
         return
-    
+
+    # Filter out already analyzed jobs
+    new_jobs = [j for j in job_listings if j['finn_code'] not in analyzed_history]
+    skipped_count = len(job_listings) - len(new_jobs)
+
+    if skipped_count > 0:
+        print(f"Skipping {skipped_count} previously analyzed jobs")
+
+    if not new_jobs:
+        print("No new jobs to analyze. Exiting.")
+        return
+
+    print(f"Found {len(new_jobs)} new jobs to analyze")
+
     # Step 2: Fetch details and analyze each job
     analyzed_jobs = []
-    
-    for i, job_data in enumerate(job_listings):
-        print(f"\nAnalyzing job {i+1}/{len(job_listings)}: {job_data.get('title', 'Unknown')[:50]}...")
-        
+
+    for i, job_data in enumerate(new_jobs):
+        print(f"\nAnalyzing job {i+1}/{len(new_jobs)}: {job_data.get('title', 'Unknown')[:50]}...")
+
         # Create JobListing object
         job = JobListing(
             title=job_data.get('title', 'Unknown'),
@@ -334,22 +446,22 @@ def main():
             url=job_data['url'],
             finn_code=job_data['finn_code'],
         )
-        
+
         # Fetch full job details
         job.description = fetch_job_details(job.url)
-        
+
         if job.description:
             # Extract company and location from description if not already set
             if not job.company:
                 company_match = re.search(r'Company:\s*(.+?)(?:\n|$)', job.description)
                 if company_match:
                     job.company = company_match.group(1).strip()
-            
+
             if not job.location:
                 location_match = re.search(r'Location:\s*(.+?)(?:\n|$)', job.description)
                 if location_match:
                     job.location = location_match.group(1).strip()
-            
+
             # Analyze with Claude
             job.score, job.reasoning = analyze_job_with_claude(job.description, USER_PROFILE)
             print(f"  Score: {job.score}/100 - {job.reasoning[:60]}...")
@@ -357,24 +469,39 @@ def main():
             job.score = 0
             job.reasoning = "Could not fetch job details"
             print(f"  Could not fetch job details")
-        
+
         analyzed_jobs.append(job)
-        
+
+        # Save to history
+        analyzed_history[job.finn_code] = {
+            'title': job.title,
+            'company': job.company,
+            'score': job.score,
+            'analyzed_date': datetime.now().strftime('%Y-%m-%d'),
+        }
+
+        # Save history after each job (in case of interruption)
+        save_analyzed_jobs(analyzed_history)
+
         # Rate limiting - be nice to FINN.no and Anthropic API
         time.sleep(2)
-    
+
     # Step 3: Generate report
     report = generate_summary_report(analyzed_jobs, USER_PROFILE)
-    
+
     # Step 4: Save and send report
     report_file = save_report_to_file(report)
-    
+
     # Send email if configured
     send_email_report(report)
-    
+
+    # Sync to cloud dashboard if configured
+    sync_to_cloud()
+
     print("\n" + "=" * 60)
     print("Scan complete!")
     print(f"Report saved to: {report_file}")
+    print(f"Total jobs in history: {len(analyzed_history)}")
     print("=" * 60)
 
 

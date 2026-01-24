@@ -16,8 +16,14 @@ ENV/
 
 # Project specific
 job_report_*.md
+analyzed_jobs.json
+reports_index.json
 cron.log
 *.log
+
+# AWS config contains credentials
+aws_dashboard_config.json
+cf_function.js
 
 # Don't commit API keys (but config.py template is fine)
 # If you add real keys, add config.py here
