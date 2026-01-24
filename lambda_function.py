@@ -237,10 +237,27 @@ def analyze_job_with_claude(job_details, profile, api_key):
 
         result_text = response.content[0].text.strip()
 
+        # Try to extract JSON from various response formats
+        # 1. Check for markdown code blocks
         if "```" in result_text:
-            match = re.search(r'```(?:json)?\s*({.*?})\s*```', result_text, re.DOTALL)
+            match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', result_text, re.DOTALL)
             if match:
                 result_text = match.group(1)
+
+        # 2. Extract JSON by finding balanced braces
+        start_idx = result_text.find('{')
+        if start_idx != -1:
+            brace_count = 0
+            end_idx = start_idx
+            for i, char in enumerate(result_text[start_idx:], start_idx):
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        end_idx = i + 1
+                        break
+            result_text = result_text[start_idx:end_idx]
 
         result = json.loads(result_text)
         return result['score'], result['reasoning']
