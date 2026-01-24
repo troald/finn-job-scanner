@@ -936,8 +936,12 @@
                 const log = await res.json();
                 displayRunLog(log);
 
-                // If running, poll for updates
-                if (log.status === 'running') {
+                // Only poll if running AND started within last 15 minutes
+                const startTime = new Date(log.start_time);
+                const minutesAgo = (Date.now() - startTime.getTime()) / 1000 / 60;
+                const isRecentRun = minutesAgo < 15;
+
+                if (log.status === 'running' && isRecentRun) {
                     if (!runLogPolling) {
                         runLogPolling = setInterval(loadRunLog, 3000);
                     }
