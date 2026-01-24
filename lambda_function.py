@@ -93,7 +93,7 @@ def fetch_finn_search_results(search_url, max_jobs):
 
         if page > 1:
             print(f"    Fetching page {page}...")
-            time.sleep(1)  # Rate limiting between pages
+            time.sleep(5)  # Rate limiting between pages
 
         response = requests.get(page_url, headers=headers, timeout=30)
         response.raise_for_status()
