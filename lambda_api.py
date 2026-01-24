@@ -1,6 +1,7 @@
 """
 AWS Lambda API handler for managing job scanner profiles.
 Provides GET/PUT endpoints for search profiles configuration.
+Also supports POST /run to trigger the scanner manually.
 """
 
 import json
@@ -8,7 +9,9 @@ import boto3
 import os
 
 s3 = boto3.client('s3')
+lambda_client = boto3.client('lambda')
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'job-scanner-dashboard-043760299039')
+SCANNER_FUNCTION = os.environ.get('SCANNER_FUNCTION', 'job-scanner')
 CONFIG_KEY = 'config/search_profiles.json'
 
 
@@ -19,12 +22,13 @@ def lambda_handler(event, context):
     headers = {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, PUT, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization'
     }
 
     # Handle preflight
     http_method = event.get('httpMethod') or event.get('requestContext', {}).get('http', {}).get('method', 'GET')
+    path = event.get('path') or event.get('rawPath', '/profiles')
 
     if http_method == 'OPTIONS':
         return {
@@ -34,8 +38,13 @@ def lambda_handler(event, context):
         }
 
     try:
-        if http_method == 'GET':
+        # Route: POST /run - trigger scanner
+        if http_method == 'POST' and '/run' in path:
+            return trigger_scanner(headers)
+        # Route: GET /profiles
+        elif http_method == 'GET':
             return get_profiles(headers)
+        # Route: PUT /profiles
         elif http_method == 'PUT':
             body = event.get('body', '{}')
             if isinstance(body, str):
@@ -108,3 +117,37 @@ def put_profiles(profiles, headers):
         'headers': headers,
         'body': json.dumps({'message': 'Profiles saved successfully'})
     }
+
+
+def trigger_scanner(headers):
+    """Trigger the job scanner Lambda function asynchronously."""
+    try:
+        response = lambda_client.invoke(
+            FunctionName=SCANNER_FUNCTION,
+            InvocationType='Event',  # Async invocation
+            Payload=json.dumps({'source': 'manual'})
+        )
+
+        status_code = response.get('StatusCode', 500)
+
+        if status_code == 202:  # Accepted for async
+            return {
+                'statusCode': 200,
+                'headers': headers,
+                'body': json.dumps({
+                    'message': 'Scanner started successfully',
+                    'status': 'running'
+                })
+            }
+        else:
+            return {
+                'statusCode': 500,
+                'headers': headers,
+                'body': json.dumps({'error': f'Failed to start scanner: {status_code}'})
+            }
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'Failed to invoke scanner: {str(e)}'})
+        }

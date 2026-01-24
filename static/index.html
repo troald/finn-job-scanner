@@ -103,6 +103,58 @@
         .nav-btn:hover { background: var(--bg-card); color: var(--text-primary); }
         .nav-btn.active { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
 
+        /* Header Actions */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .header-content { flex: 1; }
+
+        .run-btn {
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #2d5a27 0%, #1a3d15 100%);
+            border: 1px solid #3d7a35;
+            color: #4ade80;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .run-btn:hover {
+            background: linear-gradient(135deg, #3d7a35 0%, #2d5a27 100%);
+            border-color: #4ade80;
+        }
+
+        .run-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .run-btn.running {
+            background: linear-gradient(135deg, #1a3d15 0%, #0f2a0d 100%);
+        }
+
+        .run-btn .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid transparent;
+            border-top-color: #4ade80;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Profile Filter */
         .profile-filter {
             display: flex;
@@ -547,9 +599,17 @@
 <body>
     <div class="container">
         <header>
-            <h1 class="logo">Job Scanner <span>Dashboard</span></h1>
-            <p class="tagline">FINN.no &bull; AI-Powered Job Matching</p>
-            <p class="last-updated" id="last-updated"></p>
+            <div class="header-row">
+                <div class="header-content">
+                    <h1 class="logo">Job Scanner <span>Dashboard</span></h1>
+                    <p class="tagline">FINN.no &bull; AI-Powered Job Matching</p>
+                    <p class="last-updated" id="last-updated"></p>
+                </div>
+                <button class="run-btn" id="run-scanner" onclick="runScanner()">
+                    <span class="run-icon">▶</span>
+                    <span class="run-text">Run Now</span>
+                </button>
+            </div>
         </header>
 
         <nav>
@@ -663,6 +723,51 @@
                     apiUrl = config.apiUrl || '';
                 }
             } catch (e) { /* API config optional */ }
+        }
+
+        // Run Scanner
+        async function runScanner() {
+            if (!apiUrl) {
+                alert('API not configured. Please check settings.');
+                return;
+            }
+
+            const btn = document.getElementById('run-scanner');
+            const icon = btn.querySelector('.run-icon');
+            const text = btn.querySelector('.run-text');
+
+            btn.disabled = true;
+            btn.classList.add('running');
+            icon.innerHTML = '<div class="spinner"></div>';
+            text.textContent = 'Running...';
+
+            try {
+                const res = await fetch(`${apiUrl}/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    text.textContent = 'Started!';
+                    icon.innerHTML = '✓';
+                    setTimeout(() => {
+                        text.textContent = 'Run Now';
+                        icon.innerHTML = '▶';
+                        btn.disabled = false;
+                        btn.classList.remove('running');
+                    }, 3000);
+                } else {
+                    throw new Error(data.error || 'Failed to start scanner');
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+                text.textContent = 'Run Now';
+                icon.innerHTML = '▶';
+                btn.disabled = false;
+                btn.classList.remove('running');
+            }
         }
 
         // Navigation

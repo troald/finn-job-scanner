@@ -13,6 +13,7 @@ REGION = "eu-north-1"
 ACCOUNT_ID = "043760299039"
 BUCKET_NAME = "job-scanner-dashboard-043760299039"
 FUNCTION_NAME = "job-scanner-api"
+SCANNER_FUNCTION = "job-scanner"
 API_NAME = "job-scanner-api"
 ROLE_NAME = "job-scanner-lambda-role"  # Reuse existing role
 BASE_DIR = Path(__file__).parent
@@ -31,7 +32,7 @@ def run_aws(args):
 
 def create_lambda():
     """Create the API Lambda function."""
-    print("\n[1/4] Creating API Lambda function...")
+    print("\n[1/5] Creating API Lambda function...")
 
     # Create zip
     zip_path = BASE_DIR / "lambda_api.zip"
@@ -50,7 +51,7 @@ def create_lambda():
     ])
     role_arn = role_result or f"arn:aws:iam::{ACCOUNT_ID}:role/{ROLE_NAME}"
 
-    env_vars = {"Variables": {"BUCKET_NAME": BUCKET_NAME}}
+    env_vars = {"Variables": {"BUCKET_NAME": BUCKET_NAME, "SCANNER_FUNCTION": SCANNER_FUNCTION}}
 
     if result:
         print(f"  Updating existing function...")
@@ -86,7 +87,7 @@ def create_lambda():
 
 def create_api_gateway():
     """Create HTTP API Gateway."""
-    print("\n[2/4] Creating API Gateway...")
+    print("\n[2/5] Creating API Gateway...")
 
     # Check if API exists
     result = run_aws([
@@ -108,7 +109,7 @@ def create_api_gateway():
         "--protocol-type", "HTTP",
         "--cors-configuration", json.dumps({
             "AllowOrigins": ["*"],
-            "AllowMethods": ["GET", "PUT", "OPTIONS"],
+            "AllowMethods": ["GET", "PUT", "POST", "OPTIONS"],
             "AllowHeaders": ["Content-Type", "Authorization"]
         }),
         "--query", "ApiId",
@@ -122,7 +123,7 @@ def create_api_gateway():
 
 def setup_integration(api_id):
     """Set up Lambda integration."""
-    print("\n[3/4] Setting up Lambda integration...")
+    print("\n[3/5] Setting up Lambda integration...")
 
     lambda_arn = f"arn:aws:lambda:{REGION}:{ACCOUNT_ID}:function:{FUNCTION_NAME}"
 
@@ -150,12 +151,21 @@ def setup_integration(api_id):
         integration_id = result
         print(f"  Created integration: {integration_id}")
 
-    # Create routes
+    # Create routes for /profiles
     for method in ["GET", "PUT", "OPTIONS"]:
         run_aws([
             "apigatewayv2", "create-route",
             "--api-id", api_id,
             "--route-key", f"{method} /profiles",
+            "--target", f"integrations/{integration_id}"
+        ])
+
+    # Create route for /run
+    for method in ["POST", "OPTIONS"]:
+        run_aws([
+            "apigatewayv2", "create-route",
+            "--api-id", api_id,
+            "--route-key", f"{method} /run",
             "--target", f"integrations/{integration_id}"
         ])
 
@@ -181,9 +191,53 @@ def setup_integration(api_id):
     return integration_id
 
 
+def add_invoke_permission():
+    """Add permission for API Lambda to invoke scanner Lambda."""
+    print("\n[4/5] Adding Lambda invoke permission...")
+
+    policy_name = f"{FUNCTION_NAME}-invoke-policy"
+    policy_doc = {
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Action": "lambda:InvokeFunction",
+            "Resource": f"arn:aws:lambda:{REGION}:{ACCOUNT_ID}:function:{SCANNER_FUNCTION}"
+        }]
+    }
+
+    # Check if policy exists
+    existing = run_aws([
+        "iam", "list-policies",
+        "--query", f"Policies[?PolicyName=='{policy_name}'].Arn",
+        "--output", "text"
+    ])
+
+    if existing:
+        policy_arn = existing
+        print(f"  Policy exists: {policy_name}")
+    else:
+        result = run_aws([
+            "iam", "create-policy",
+            "--policy-name", policy_name,
+            "--policy-document", json.dumps(policy_doc),
+            "--query", "Policy.Arn",
+            "--output", "text"
+        ])
+        policy_arn = result
+        print(f"  Created policy: {policy_name}")
+
+    if policy_arn:
+        run_aws([
+            "iam", "attach-role-policy",
+            "--role-name", ROLE_NAME,
+            "--policy-arn", policy_arn
+        ])
+        print("  Policy attached to role")
+
+
 def get_api_url(api_id):
     """Get the API endpoint URL."""
-    print("\n[4/4] Getting API endpoint...")
+    print("\n[5/5] Getting API endpoint...")
 
     result = run_aws([
         "apigatewayv2", "get-api",
@@ -221,6 +275,7 @@ def main():
     create_lambda()
     api_id = create_api_gateway()
     setup_integration(api_id)
+    add_invoke_permission()
     api_url = get_api_url(api_id)
     update_dashboard(api_url)
 
@@ -228,12 +283,17 @@ def main():
     print("API Deployment complete!")
     print("=" * 60)
     print(f"""
-API Endpoint: {api_url}/profiles
-  GET  - Retrieve all profiles
-  PUT  - Save profiles
+API Endpoints:
+  {api_url}/profiles
+    GET  - Retrieve all profiles
+    PUT  - Save profiles
+
+  {api_url}/run
+    POST - Trigger scanner manually
 
 Test with:
   curl {api_url}/profiles
+  curl -X POST {api_url}/run
 """)
 
 
