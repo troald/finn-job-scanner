@@ -1,0 +1,6 @@
+# FINN.no Job Scanner Dependencies
+# Install with: pip install -r requirements.txt
+
+anthropic>=0.18.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0

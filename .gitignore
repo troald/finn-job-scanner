@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+job_report_*.md
+cron.log
+*.log
+
+# Don't commit API keys (but config.py template is fine)
+# If you add real keys, add config.py here
