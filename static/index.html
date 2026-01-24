@@ -6,21 +6,26 @@
     <title>Job Scanner Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-primary: #0a0a0a;
             --bg-secondary: #141414;
             --bg-card: #1a1a1a;
             --bg-hover: #222222;
+            --bg-input: #0f0f0f;
             --text-primary: #f5f5f4;
             --text-secondary: #a8a8a8;
             --text-muted: #6b6b6b;
             --accent: #e8e4dd;
+            --accent-dim: #3a3a38;
             --border: #2a2a2a;
+            --border-focus: #4a4a4a;
             --score-high: #4ade80;
             --score-mid: #fbbf24;
             --score-low: #f87171;
+            --success: #4ade80;
+            --error: #f87171;
             --gradient-subtle: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
         }
 
@@ -178,7 +183,7 @@
         .section-header {
             display: flex;
             justify-content: space-between;
-            align-items: baseline;
+            align-items: center;
             margin-bottom: 1.5rem;
             padding-bottom: 1rem;
             border-bottom: 1px solid var(--border);
@@ -246,7 +251,7 @@
 
         .date-cell { font-size: 0.875rem; color: var(--text-secondary); }
 
-        .link-btn {
+        .link-btn, .btn {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
@@ -255,12 +260,27 @@
             border: 1px solid var(--border);
             color: var(--text-secondary);
             text-decoration: none;
+            font-family: inherit;
             font-size: 0.8125rem;
+            cursor: pointer;
             transition: all 0.2s ease;
             border-radius: 2px;
         }
 
-        .link-btn:hover { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
+        .link-btn:hover, .btn:hover { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+            border-color: var(--accent);
+        }
+        .btn-primary:hover { background: var(--text-primary); }
+
+        .btn-danger { border-color: var(--error); color: var(--error); }
+        .btn-danger:hover { background: var(--error); color: var(--bg-primary); }
+
+        .btn-success { border-color: var(--success); color: var(--success); }
+        .btn-success:hover { background: var(--success); color: var(--bg-primary); }
 
         .reports-grid {
             display: grid;
@@ -307,6 +327,150 @@
         .report-content ul, .report-content ol { margin: 1rem 0; padding-left: 1.5rem; color: var(--text-secondary); }
         .report-content li { margin-bottom: 0.5rem; }
 
+        /* Settings/Profiles Management */
+        .profiles-grid {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 2rem;
+        }
+
+        .profiles-list {
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .profile-list-item {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .profile-list-item:last-child { border-bottom: none; }
+        .profile-list-item:hover { background: var(--bg-hover); }
+        .profile-list-item.active { background: var(--bg-card); border-left: 2px solid var(--accent); }
+
+        .profile-list-name { font-weight: 500; }
+        .profile-list-id { font-size: 0.75rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+        .profile-status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 2px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .profile-status.enabled { background: rgba(74, 222, 128, 0.1); color: var(--score-high); }
+        .profile-status.disabled { background: rgba(248, 113, 113, 0.1); color: var(--score-low); }
+
+        .profile-editor {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            padding: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9375rem;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-textarea {
+            min-height: 200px;
+            resize: vertical;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8125rem;
+            line-height: 1.6;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .form-hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+        }
+
+        .toggle-switch input { display: none; }
+
+        .toggle-track {
+            width: 44px;
+            height: 24px;
+            background: var(--border);
+            border-radius: 12px;
+            position: relative;
+            transition: background 0.2s ease;
+        }
+
+        .toggle-track::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+
+        .toggle-switch input:checked + .toggle-track {
+            background: var(--success);
+        }
+
+        .toggle-switch input:checked + .toggle-track::after {
+            left: 22px;
+            background: var(--bg-primary);
+        }
+
         .empty-state {
             display: flex;
             flex-direction: column;
@@ -345,15 +509,38 @@
 
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success { border-color: var(--success); }
+        .toast.error { border-color: var(--error); }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         @media (max-width: 1024px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            .reports-grid { grid-template-columns: 1fr; }
+            .reports-grid, .profiles-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 640px) {
             .stats-grid { grid-template-columns: 1fr; }
             .container { padding: 0 1rem; }
             .logo { font-size: 2rem; }
+            .form-row { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -368,8 +555,10 @@
         <nav>
             <button class="nav-btn active" data-view="dashboard">Dashboard</button>
             <button class="nav-btn" data-view="reports">Reports</button>
+            <button class="nav-btn" data-view="settings">Settings</button>
         </nav>
 
+        <!-- Dashboard View -->
         <div id="dashboard" class="view active">
             <div class="profile-filter" id="profile-filter">
                 <button class="profile-btn active" data-profile="all">All Profiles</button>
@@ -414,6 +603,7 @@
             </table>
         </div>
 
+        <!-- Reports View -->
         <div id="reports" class="view">
             <div class="section-header">
                 <h2 class="section-title">Daily Reports</h2>
@@ -432,6 +622,26 @@
                 </div>
             </div>
         </div>
+
+        <!-- Settings View -->
+        <div id="settings" class="view">
+            <div class="section-header">
+                <h2 class="section-title">Search Profiles</h2>
+                <button class="btn btn-primary" onclick="createNewProfile()">+ New Profile</button>
+            </div>
+
+            <div class="profiles-grid">
+                <div class="profiles-list" id="profiles-list">
+                    <div class="loading">Loading</div>
+                </div>
+                <div class="profile-editor" id="profile-editor">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#9881;</div>
+                        <p>Select a profile to edit or create a new one</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -439,7 +649,21 @@
         const DATA_BASE = './data';
         let allJobs = {};
         let profiles = {};
+        let profilesConfig = {};
         let currentProfile = 'all';
+        let editingProfileId = null;
+        let apiUrl = '';
+
+        // Load API config
+        async function loadApiConfig() {
+            try {
+                const res = await fetch(`${DATA_BASE}/api_config.json`);
+                if (res.ok) {
+                    const config = await res.json();
+                    apiUrl = config.apiUrl || '';
+                }
+            } catch (e) { /* API config optional */ }
+        }
 
         // Navigation
         document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -448,21 +672,27 @@
                 document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
                 btn.classList.add('active');
                 document.getElementById(btn.dataset.view).classList.add('active');
+                if (btn.dataset.view === 'settings') loadProfilesConfig();
             });
         });
 
-        // Flatten nested job structure into array
+        // Toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // Flatten nested job structure
         function flattenJobs(jobsData) {
             const jobs = [];
             for (const [profileId, profileJobs] of Object.entries(jobsData)) {
                 if (typeof profileJobs === 'object' && profileJobs !== null) {
                     for (const [finnCode, job] of Object.entries(profileJobs)) {
-                        if (job.title) {  // Skip if not a job object
-                            jobs.push({
-                                finnCode,
-                                profileId,
-                                ...job
-                            });
+                        if (job.title) {
+                            jobs.push({ finnCode, profileId, ...job });
                         }
                     }
                 }
@@ -470,13 +700,11 @@
             return jobs;
         }
 
-        // Filter jobs by profile
         function filterJobs(jobs, profileId) {
             if (profileId === 'all') return jobs;
             return jobs.filter(j => j.profileId === profileId || j.profile_id === profileId);
         }
 
-        // Update stats
         function updateStats(jobs) {
             const total = jobs.length;
             const high = jobs.filter(j => j.score >= 70).length;
@@ -490,7 +718,6 @@
             document.getElementById('jobs-count').textContent = `${total} jobs`;
         }
 
-        // Render jobs table
         function renderJobs(jobs) {
             const tbody = document.getElementById('jobs-tbody');
             tbody.innerHTML = '';
@@ -498,16 +725,7 @@
             const sortedJobs = jobs.sort((a, b) => (b.score || 0) - (a.score || 0));
 
             if (sortedJobs.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="4">
-                            <div class="empty-state">
-                                <div class="empty-state-icon">&#128269;</div>
-                                <p>No jobs found for this filter.</p>
-                            </div>
-                        </td>
-                    </tr>
-                `;
+                tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">&#128269;</div><p>No jobs found.</p></div></td></tr>`;
                 return;
             }
 
@@ -523,37 +741,29 @@
                         ${profileName ? `<span class="job-profile">${escapeHtml(profileName)}</span>` : ''}
                     </td>
                     <td class="date-cell">${job.analyzed_date || 'N/A'}</td>
-                    <td>
-                        <a href="https://www.finn.no/job/ad/${job.finnCode}" target="_blank" class="link-btn">
-                            View on FINN &#8594;
-                        </a>
-                    </td>
+                    <td><a href="https://www.finn.no/job/ad/${job.finnCode}" target="_blank" class="link-btn">View &#8594;</a></td>
                 `;
                 tbody.appendChild(row);
             });
         }
 
-        // Build profile filter buttons
         function buildProfileFilter(jobs) {
             const filter = document.getElementById('profile-filter');
             filter.innerHTML = '';
 
-            // Count jobs per profile
             const profileCounts = { all: jobs.length };
             jobs.forEach(job => {
                 const pid = job.profileId || job.profile_id || 'unknown';
                 profileCounts[pid] = (profileCounts[pid] || 0) + 1;
             });
 
-            // All button
             const allBtn = document.createElement('button');
             allBtn.className = 'profile-btn active';
             allBtn.dataset.profile = 'all';
-            allBtn.innerHTML = `All Profiles <span class="count">${profileCounts.all}</span>`;
+            allBtn.innerHTML = `All <span class="count">${profileCounts.all}</span>`;
             allBtn.addEventListener('click', () => selectProfile('all'));
             filter.appendChild(allBtn);
 
-            // Profile buttons
             const profileIds = [...new Set(jobs.map(j => j.profileId || j.profile_id))].filter(Boolean);
             profileIds.forEach(pid => {
                 const name = profiles[pid]?.name || pid;
@@ -567,37 +777,29 @@
             });
         }
 
-        // Select profile
         function selectProfile(profileId) {
             currentProfile = profileId;
             document.querySelectorAll('.profile-btn').forEach(b => {
                 b.classList.toggle('active', b.dataset.profile === profileId);
             });
-
             const jobs = flattenJobs(allJobs);
             const filtered = filterJobs(jobs, profileId);
             updateStats(filtered);
             renderJobs(filtered);
         }
 
-        // Load dashboard data
         async function loadDashboard() {
             try {
-                // Load profiles first
                 try {
                     const profilesRes = await fetch(`${DATA_BASE}/profiles.json`);
-                    if (profilesRes.ok) {
-                        profiles = await profilesRes.json();
-                    }
-                } catch (e) { /* profiles optional */ }
+                    if (profilesRes.ok) profiles = await profilesRes.json();
+                } catch (e) {}
 
                 const response = await fetch(`${DATA_BASE}/analyzed_jobs.json`);
-                if (!response.ok) throw new Error('No data yet');
+                if (!response.ok) throw new Error('No data');
                 allJobs = await response.json();
 
                 const jobs = flattenJobs(allJobs);
-
-                // Find most recent date
                 const dates = jobs.map(j => j.analyzed_date).filter(Boolean).sort().reverse();
                 if (dates.length > 0) {
                     document.getElementById('last-updated').textContent = `Last scan: ${dates[0]}`;
@@ -606,28 +808,13 @@
                 buildProfileFilter(jobs);
                 updateStats(jobs);
                 renderJobs(jobs);
-
             } catch (error) {
-                console.error('Failed to load jobs:', error);
-                document.getElementById('jobs-tbody').innerHTML = `
-                    <tr>
-                        <td colspan="4">
-                            <div class="empty-state">
-                                <div class="empty-state-icon">&#128269;</div>
-                                <p>No data available yet. Run the job scanner first.</p>
-                            </div>
-                        </td>
-                    </tr>
-                `;
+                document.getElementById('jobs-tbody').innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">&#128269;</div><p>No data yet. Run the scanner first.</p></div></td></tr>`;
                 document.getElementById('jobs-count').textContent = '0 jobs';
-                document.getElementById('total-jobs').textContent = '0';
-                document.getElementById('high-match').textContent = '0';
-                document.getElementById('mid-match').textContent = '0';
-                document.getElementById('low-match').textContent = '0';
+                ['total-jobs', 'high-match', 'mid-match', 'low-match'].forEach(id => document.getElementById(id).textContent = '0');
             }
         }
 
-        // Load reports list
         async function loadReports() {
             try {
                 const response = await fetch(`${DATA_BASE}/reports_index.json`);
@@ -635,52 +822,219 @@
                 const reports = await response.json();
 
                 document.getElementById('reports-count').textContent = `${reports.length} reports`;
-
                 const list = document.getElementById('reports-list');
                 list.innerHTML = '';
 
                 if (reports.length === 0) {
-                    list.innerHTML = `<div class="empty-state" style="height: 200px;"><p>No reports generated yet</p></div>`;
+                    list.innerHTML = `<div class="empty-state" style="height:200px;"><p>No reports yet</p></div>`;
                     return;
                 }
 
-                reports.forEach((report, index) => {
+                reports.forEach((report, i) => {
                     const item = document.createElement('div');
-                    item.className = 'report-item' + (index === 0 ? ' active' : '');
-                    item.dataset.filename = report.filename;
-                    item.innerHTML = `
-                        <div class="report-date">${report.date_display}</div>
-                        <div class="report-meta">${report.filename}</div>
-                    `;
+                    item.className = 'report-item' + (i === 0 ? ' active' : '');
+                    item.innerHTML = `<div class="report-date">${report.date_display}</div><div class="report-meta">${report.filename}</div>`;
                     item.addEventListener('click', () => loadReport(report.filename, item));
                     list.appendChild(item);
                 });
 
-                if (reports.length > 0) {
-                    loadReport(reports[0].filename);
-                }
+                if (reports.length > 0) loadReport(reports[0].filename);
             } catch (error) {
-                console.error('Failed to load reports:', error);
-                document.getElementById('reports-list').innerHTML = `<div class="empty-state" style="height: 200px;"><p>No reports available yet</p></div>`;
+                document.getElementById('reports-list').innerHTML = `<div class="empty-state" style="height:200px;"><p>No reports</p></div>`;
                 document.getElementById('reports-count').textContent = '0 reports';
             }
         }
 
-        // Load single report
         async function loadReport(filename, clickedItem = null) {
             try {
                 if (clickedItem) {
                     document.querySelectorAll('.report-item').forEach(i => i.classList.remove('active'));
                     clickedItem.classList.add('active');
                 }
-
                 const response = await fetch(`${DATA_BASE}/reports/${filename}`);
-                if (!response.ok) throw new Error('Report not found');
-                const markdown = await response.text();
+                if (!response.ok) throw new Error('Not found');
+                document.getElementById('report-content').innerHTML = marked.parse(await response.text());
+            } catch (error) {}
+        }
 
-                document.getElementById('report-content').innerHTML = marked.parse(markdown);
-            } catch (error) {
-                console.error('Failed to load report:', error);
+        // Profiles Management
+        async function loadProfilesConfig() {
+            const list = document.getElementById('profiles-list');
+            list.innerHTML = '<div class="loading">Loading</div>';
+
+            try {
+                if (apiUrl) {
+                    const res = await fetch(`${apiUrl}/profiles`);
+                    if (res.ok) {
+                        profilesConfig = await res.json();
+                    }
+                } else {
+                    const res = await fetch(`${DATA_BASE}/../config/search_profiles.json`);
+                    if (res.ok) profilesConfig = await res.json();
+                }
+            } catch (e) {
+                profilesConfig = {};
+            }
+
+            renderProfilesList();
+        }
+
+        function renderProfilesList() {
+            const list = document.getElementById('profiles-list');
+            list.innerHTML = '';
+
+            const ids = Object.keys(profilesConfig);
+            if (ids.length === 0) {
+                list.innerHTML = `<div class="empty-state" style="height:200px;"><p>No profiles configured</p></div>`;
+                return;
+            }
+
+            ids.forEach(id => {
+                const p = profilesConfig[id];
+                const item = document.createElement('div');
+                item.className = 'profile-list-item' + (editingProfileId === id ? ' active' : '');
+                item.innerHTML = `
+                    <div>
+                        <div class="profile-list-name">${escapeHtml(p.name || id)}</div>
+                        <div class="profile-list-id">${escapeHtml(id)}</div>
+                    </div>
+                    <span class="profile-status ${p.enabled !== false ? 'enabled' : 'disabled'}">${p.enabled !== false ? 'Enabled' : 'Disabled'}</span>
+                `;
+                item.addEventListener('click', () => editProfile(id));
+                list.appendChild(item);
+            });
+        }
+
+        function createNewProfile() {
+            const id = 'profile-' + Date.now();
+            profilesConfig[id] = {
+                name: 'New Profile',
+                enabled: true,
+                search_url: 'https://www.finn.no/job/search?published=1',
+                minimum_score: 30,
+                max_jobs: 25,
+                profile: '## Target Role\nDescribe the ideal role...\n\n## Key Skills\n- Skill 1\n- Skill 2'
+            };
+            editingProfileId = id;
+            renderProfilesList();
+            renderProfileEditor();
+        }
+
+        function editProfile(id) {
+            editingProfileId = id;
+            renderProfilesList();
+            renderProfileEditor();
+        }
+
+        function renderProfileEditor() {
+            const editor = document.getElementById('profile-editor');
+
+            if (!editingProfileId || !profilesConfig[editingProfileId]) {
+                editor.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#9881;</div><p>Select a profile</p></div>`;
+                return;
+            }
+
+            const p = profilesConfig[editingProfileId];
+
+            editor.innerHTML = `
+                <div class="form-group">
+                    <label class="form-label">Profile ID</label>
+                    <input type="text" class="form-input" id="edit-id" value="${escapeHtml(editingProfileId)}" style="font-family:'JetBrains Mono',monospace;">
+                    <p class="form-hint">Unique identifier (no spaces, lowercase recommended)</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Display Name</label>
+                    <input type="text" class="form-input" id="edit-name" value="${escapeHtml(p.name || '')}">
+                </div>
+
+                <div class="form-group">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="edit-enabled" ${p.enabled !== false ? 'checked' : ''}>
+                        <span class="toggle-track"></span>
+                        <span>Enabled</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">FINN.no Search URL</label>
+                    <input type="text" class="form-input" id="edit-url" value="${escapeHtml(p.search_url || '')}" style="font-family:'JetBrains Mono',monospace;font-size:0.8125rem;">
+                    <p class="form-hint">Go to finn.no/job, set your filters, copy the URL</p>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Minimum Score</label>
+                        <input type="number" class="form-input" id="edit-min-score" value="${p.minimum_score || 30}" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Max Jobs per Run</label>
+                        <input type="number" class="form-input" id="edit-max-jobs" value="${p.max_jobs || 25}" min="1" max="100">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Scoring Criteria / Prompt</label>
+                    <textarea class="form-textarea" id="edit-profile">${escapeHtml(p.profile || '')}</textarea>
+                    <p class="form-hint">Describe the ideal candidate, skills to match, location preferences, etc.</p>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn btn-primary" onclick="saveProfile()">Save Profile</button>
+                    <button class="btn btn-danger" onclick="deleteProfile()">Delete</button>
+                </div>
+            `;
+        }
+
+        async function saveProfile() {
+            const oldId = editingProfileId;
+            const newId = document.getElementById('edit-id').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+
+            if (!newId) {
+                showToast('Profile ID is required', 'error');
+                return;
+            }
+
+            const profile = {
+                name: document.getElementById('edit-name').value.trim() || newId,
+                enabled: document.getElementById('edit-enabled').checked,
+                search_url: document.getElementById('edit-url').value.trim(),
+                minimum_score: parseInt(document.getElementById('edit-min-score').value) || 30,
+                max_jobs: parseInt(document.getElementById('edit-max-jobs').value) || 25,
+                profile: document.getElementById('edit-profile').value
+            };
+
+            if (newId !== oldId) {
+                delete profilesConfig[oldId];
+            }
+            profilesConfig[newId] = profile;
+            editingProfileId = newId;
+
+            await saveAllProfiles();
+        }
+
+        async function deleteProfile() {
+            if (!confirm('Delete this profile?')) return;
+            delete profilesConfig[editingProfileId];
+            editingProfileId = null;
+            await saveAllProfiles();
+        }
+
+        async function saveAllProfiles() {
+            try {
+                if (apiUrl) {
+                    const res = await fetch(`${apiUrl}/profiles`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(profilesConfig)
+                    });
+                    if (!res.ok) throw new Error('Save failed');
+                }
+                showToast('Profiles saved!');
+                renderProfilesList();
+                renderProfileEditor();
+            } catch (e) {
+                showToast('Failed to save: ' + e.message, 'error');
             }
         }
 
@@ -690,8 +1044,11 @@
             return div.innerHTML;
         }
 
-        loadDashboard();
-        loadReports();
+        // Initialize
+        loadApiConfig().then(() => {
+            loadDashboard();
+            loadReports();
+        });
     </script>
 </body>
 </html>
