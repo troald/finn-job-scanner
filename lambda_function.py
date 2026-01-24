@@ -72,7 +72,7 @@ def save_to_s3(key, data, content_type='application/json'):
 
 
 def fetch_finn_search_results(search_url, max_jobs):
-    """Fetch job listings from FINN.no search page."""
+    """Fetch job listings from FINN.no search page with pagination support."""
     print(f"  Fetching from: {search_url[:80]}...")
 
     headers = {
@@ -81,35 +81,57 @@ def fetch_finn_search_results(search_url, max_jobs):
         'Accept-Language': 'en-US,en;q=0.5',
     }
 
-    response = requests.get(search_url, headers=headers, timeout=30)
-    response.raise_for_status()
-
-    soup = BeautifulSoup(response.text, 'html.parser')
-    jobs = []
-
-    job_links = soup.find_all('a', href=re.compile(r'/job/ad/\d+'))
-
+    all_jobs = []
     seen_codes = set()
-    for link in job_links:
-        href = link.get('href', '')
-        match = re.search(r'/job/ad/(\d+)', href)
-        if match:
-            finn_code = match.group(1)
-            if finn_code in seen_codes:
-                continue
-            seen_codes.add(finn_code)
+    page = 1
+    max_pages = 10  # Safety limit
 
-            title = link.get_text(strip=True) or "Unknown Title"
-            full_url = f"https://www.finn.no/job/ad/{finn_code}"
+    while len(all_jobs) < max_jobs and page <= max_pages:
+        # Build URL with page parameter
+        separator = '&' if '?' in search_url else '?'
+        page_url = f"{search_url}{separator}page={page}" if page > 1 else search_url
 
-            jobs.append({
-                'finn_code': finn_code,
-                'url': full_url,
-                'title': title[:100],
-            })
+        if page > 1:
+            print(f"    Fetching page {page}...")
+            time.sleep(1)  # Rate limiting between pages
 
-    print(f"  Found {len(jobs)} job listings")
-    return jobs[:max_jobs]
+        response = requests.get(page_url, headers=headers, timeout=30)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+        job_links = soup.find_all('a', href=re.compile(r'/job/ad/\d+'))
+
+        jobs_on_page = 0
+        for link in job_links:
+            href = link.get('href', '')
+            match = re.search(r'/job/ad/(\d+)', href)
+            if match:
+                finn_code = match.group(1)
+                if finn_code in seen_codes:
+                    continue
+                seen_codes.add(finn_code)
+
+                title = link.get_text(strip=True) or "Unknown Title"
+                full_url = f"https://www.finn.no/job/ad/{finn_code}"
+
+                all_jobs.append({
+                    'finn_code': finn_code,
+                    'url': full_url,
+                    'title': title[:100],
+                })
+                jobs_on_page += 1
+
+                if len(all_jobs) >= max_jobs:
+                    break
+
+        # No more jobs on this page = end of results
+        if jobs_on_page == 0:
+            break
+
+        page += 1
+
+    print(f"  Found {len(all_jobs)} job listings across {page} page(s)")
+    return all_jobs[:max_jobs]
 
 
 def fetch_job_details(job_url):
