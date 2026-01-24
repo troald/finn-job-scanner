@@ -232,6 +232,139 @@
         .stat-card.mid .stat-value { color: var(--score-mid); }
         .stat-card.low .stat-value { color: var(--score-low); }
 
+        /* Run Log Styles */
+        .run-log {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            margin-bottom: 2rem;
+        }
+
+        .run-log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        .run-log-header:hover { background: var(--bg-hover); }
+
+        .run-log-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+        }
+
+        .run-log-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .run-log-duration {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .run-log-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 2px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .run-log-status.running { background: rgba(251, 191, 36, 0.2); color: var(--score-mid); }
+        .run-log-status.complete { background: rgba(74, 222, 128, 0.2); color: var(--score-high); }
+        .run-log-status.error { background: rgba(248, 113, 113, 0.2); color: var(--score-low); }
+
+        .run-log-content {
+            padding: 1rem 1.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .run-log-content.collapsed { display: none; }
+
+        .log-profile {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .log-profile:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+
+        .log-profile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .log-profile-name { font-weight: 500; color: var(--text-primary); }
+        .log-profile-stats { font-size: 0.8125rem; color: var(--text-muted); }
+
+        .log-jobs { margin-left: 1rem; }
+
+        .log-job {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.375rem 0;
+            font-size: 0.8125rem;
+        }
+
+        .log-job-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .log-job-status.analyzing { background: var(--score-mid); animation: pulse 1s infinite; }
+        .log-job-status.complete { background: var(--score-high); }
+        .log-job-status.error { background: var(--score-low); }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .log-job-title {
+            color: var(--text-secondary);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .log-job-score {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .log-job-score.high { color: var(--score-high); }
+        .log-job-score.mid { color: var(--score-mid); }
+        .log-job-score.low { color: var(--score-low); }
+
+        .log-error {
+            color: var(--score-low);
+            font-size: 0.8125rem;
+            padding: 0.5rem;
+            background: rgba(248, 113, 113, 0.1);
+            border-radius: 2px;
+            margin-top: 0.5rem;
+        }
+
+        .log-empty {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            padding: 1rem;
+            text-align: center;
+        }
+
         .section-header {
             display: flex;
             justify-content: space-between;
@@ -643,6 +776,20 @@
                 </div>
             </div>
 
+            <!-- Run Log -->
+            <div class="run-log" id="run-log">
+                <div class="run-log-header" onclick="toggleRunLog()">
+                    <span class="run-log-title" id="run-log-title">Last Run: --</span>
+                    <div class="run-log-meta">
+                        <span class="run-log-duration" id="run-log-duration"></span>
+                        <span class="run-log-status" id="run-log-status">--</span>
+                    </div>
+                </div>
+                <div class="run-log-content collapsed" id="run-log-content">
+                    <div class="log-empty">No run data available</div>
+                </div>
+            </div>
+
             <div class="section-header">
                 <h2 class="section-title">Analyzed Jobs</h2>
                 <span class="section-count" id="jobs-count">Loading...</span>
@@ -752,6 +899,8 @@
                 if (res.ok) {
                     text.textContent = 'Started!';
                     icon.innerHTML = '✓';
+                    // Start polling for run log updates
+                    setTimeout(loadRunLog, 1000);
                     setTimeout(() => {
                         text.textContent = 'Run Now';
                         icon.innerHTML = '▶';
@@ -767,6 +916,120 @@
                 icon.innerHTML = '▶';
                 btn.disabled = false;
                 btn.classList.remove('running');
+            }
+        }
+
+        // Run Log Functions
+        let runLogExpanded = false;
+        let runLogPolling = null;
+
+        function toggleRunLog() {
+            runLogExpanded = !runLogExpanded;
+            document.getElementById('run-log-content').classList.toggle('collapsed', !runLogExpanded);
+        }
+
+        async function loadRunLog() {
+            try {
+                const res = await fetch(`${DATA_BASE}/run_log.json?t=${Date.now()}`);
+                if (!res.ok) return;
+
+                const log = await res.json();
+                displayRunLog(log);
+
+                // If running, poll for updates
+                if (log.status === 'running') {
+                    if (!runLogPolling) {
+                        runLogPolling = setInterval(loadRunLog, 3000);
+                    }
+                } else {
+                    if (runLogPolling) {
+                        clearInterval(runLogPolling);
+                        runLogPolling = null;
+                    }
+                }
+            } catch (e) {
+                // No log available yet
+            }
+        }
+
+        function displayRunLog(log) {
+            const title = document.getElementById('run-log-title');
+            const status = document.getElementById('run-log-status');
+            const duration = document.getElementById('run-log-duration');
+            const content = document.getElementById('run-log-content');
+
+            // Format time
+            const startTime = new Date(log.start_time);
+            const timeStr = startTime.toLocaleString('en-GB', {
+                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+            });
+
+            title.textContent = `${log.source === 'manual' ? 'Manual' : 'Scheduled'} Run: ${timeStr}`;
+            status.textContent = log.status;
+            status.className = `run-log-status ${log.status}`;
+
+            if (log.duration_seconds) {
+                duration.textContent = `${log.duration_seconds}s`;
+            } else if (log.status === 'running') {
+                duration.textContent = 'In progress...';
+            } else {
+                duration.textContent = '';
+            }
+
+            // Build content
+            let html = '';
+
+            if (log.profiles && log.profiles.length > 0) {
+                for (const profile of log.profiles) {
+                    html += `<div class="log-profile">
+                        <div class="log-profile-header">
+                            <span class="log-profile-name">${profile.profile_name}</span>
+                            <span class="log-profile-stats">`;
+
+                    if (profile.error) {
+                        html += `<span style="color:var(--score-low)">Error</span>`;
+                    } else {
+                        html += `Found: ${profile.jobs_found} | Analyzed: ${profile.jobs_analyzed}`;
+                        if (profile.jobs_skipped > 0) html += ` | Skipped: ${profile.jobs_skipped}`;
+                    }
+
+                    html += `</span></div>`;
+
+                    if (profile.error) {
+                        html += `<div class="log-error">${profile.error}</div>`;
+                    }
+
+                    if (profile.jobs && profile.jobs.length > 0) {
+                        html += `<div class="log-jobs">`;
+                        for (const job of profile.jobs) {
+                            const scoreClass = job.score >= 70 ? 'high' : job.score >= 40 ? 'mid' : 'low';
+                            html += `<div class="log-job">
+                                <div class="log-job-status ${job.status}"></div>
+                                <span class="log-job-title">${job.title}</span>`;
+                            if (job.score !== undefined) {
+                                html += `<span class="log-job-score ${scoreClass}">${job.score}</span>`;
+                            }
+                            html += `</div>`;
+                        }
+                        html += `</div>`;
+                    }
+
+                    html += `</div>`;
+                }
+            } else {
+                html = '<div class="log-empty">No profiles processed yet</div>';
+            }
+
+            if (log.errors && log.errors.length > 0) {
+                html += `<div class="log-error" style="margin-top:1rem"><strong>Errors:</strong><br>${log.errors.join('<br>')}</div>`;
+            }
+
+            content.innerHTML = html;
+
+            // Auto-expand if running
+            if (log.status === 'running' && !runLogExpanded) {
+                runLogExpanded = true;
+                content.classList.remove('collapsed');
             }
         }
 
@@ -913,7 +1176,9 @@
                 buildProfileFilter(jobs);
                 updateStats(jobs);
                 renderJobs(jobs);
+                loadRunLog();
             } catch (error) {
+                loadRunLog();
                 document.getElementById('jobs-tbody').innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">&#128269;</div><p>No data yet. Run the scanner first.</p></div></td></tr>`;
                 document.getElementById('jobs-count').textContent = '0 jobs';
                 ['total-jobs', 'high-match', 'mid-match', 'low-match'].forEach(id => document.getElementById(id).textContent = '0');

@@ -287,7 +287,7 @@ Company: {job.get('company', 'N/A')} | Location: {job.get('location', 'N/A')} | 
     return report
 
 
-def process_profile(profile_id, profile_config, analyzed_history, api_key):
+def process_profile(profile_id, profile_config, analyzed_history, api_key, run_log=None):
     """Process a single search profile."""
     profile_name = profile_config.get('name', profile_id)
     search_url = profile_config.get('search_url', '')
@@ -298,8 +298,29 @@ def process_profile(profile_id, profile_config, analyzed_history, api_key):
     print(f"Profile: {profile_name}")
     print(f"{'='*60}")
 
+    # Initialize profile log
+    profile_log = {
+        'profile_id': profile_id,
+        'profile_name': profile_name,
+        'status': 'running',
+        'search_url': search_url,
+        'jobs_found': 0,
+        'jobs_skipped': 0,
+        'jobs_analyzed': 0,
+        'jobs': [],
+        'error': None
+    }
+
+    if run_log:
+        run_log['profiles'].append(profile_log)
+        save_run_log(run_log)
+
     if not search_url:
         print("  No search URL configured, skipping.")
+        profile_log['status'] = 'skipped'
+        profile_log['error'] = 'No search URL configured'
+        if run_log:
+            save_run_log(run_log)
         return []
 
     if profile_id not in analyzed_history:
@@ -309,22 +330,36 @@ def process_profile(profile_id, profile_config, analyzed_history, api_key):
 
     try:
         job_listings = fetch_finn_search_results(search_url, max_jobs)
+        profile_log['jobs_found'] = len(job_listings)
     except Exception as e:
-        print(f"  Error fetching jobs: {e}")
+        error_msg = str(e)
+        print(f"  Error fetching jobs: {error_msg}")
+        profile_log['status'] = 'error'
+        profile_log['error'] = error_msg
+        if run_log:
+            run_log['errors'].append(f"{profile_name}: {error_msg}")
+            save_run_log(run_log)
         return []
 
     if not job_listings:
         print("  No job listings found.")
+        profile_log['status'] = 'complete'
+        if run_log:
+            save_run_log(run_log)
         return []
 
     new_jobs = [j for j in job_listings if j['finn_code'] not in profile_history]
     skipped_count = len(job_listings) - len(new_jobs)
+    profile_log['jobs_skipped'] = skipped_count
 
     if skipped_count > 0:
         print(f"  Skipping {skipped_count} previously analyzed jobs")
 
     if not new_jobs:
         print("  No new jobs to analyze.")
+        profile_log['status'] = 'complete'
+        if run_log:
+            save_run_log(run_log)
         return []
 
     print(f"  Analyzing {len(new_jobs)} new jobs...")
@@ -344,6 +379,16 @@ def process_profile(profile_id, profile_config, analyzed_history, api_key):
             'profile_name': profile_name,
         }
 
+        # Log job being processed
+        job_log = {
+            'title': job['title'],
+            'url': job['url'],
+            'status': 'analyzing'
+        }
+        profile_log['jobs'].append(job_log)
+        if run_log:
+            save_run_log(run_log)
+
         description = fetch_job_details(job['url'])
 
         if description:
@@ -357,12 +402,22 @@ def process_profile(profile_id, profile_config, analyzed_history, api_key):
 
             job['score'], job['reasoning'] = analyze_job_with_claude(description, profile_text, api_key)
             print(f"    Score: {job['score']}/100 - {job['reasoning'][:50]}...")
+
+            # Update job log
+            job_log['status'] = 'complete'
+            job_log['score'] = job['score']
+            job_log['company'] = job['company']
+            job_log['location'] = job['location']
+            job_log['reasoning'] = job['reasoning'][:100] + '...' if len(job.get('reasoning', '')) > 100 else job.get('reasoning', '')
         else:
             job['score'] = 0
             job['reasoning'] = "Could not fetch job details"
+            job_log['status'] = 'error'
+            job_log['error'] = 'Could not fetch job details'
             print(f"    Could not fetch job details")
 
         analyzed_jobs.append(job)
+        profile_log['jobs_analyzed'] = len(analyzed_jobs)
 
         profile_history[job['finn_code']] = {
             'title': job['title'],
@@ -377,11 +432,39 @@ def process_profile(profile_id, profile_config, analyzed_history, api_key):
 
         # Save after each job
         save_to_s3('data/analyzed_jobs.json', analyzed_history)
+        if run_log:
+            save_run_log(run_log)
 
         # Rate limiting
         time.sleep(2)
 
+    profile_log['status'] = 'complete'
+    if run_log:
+        save_run_log(run_log)
+
     return analyzed_jobs
+
+
+def save_run_log(run_log):
+    """Save current run log to S3."""
+    # Save current run
+    save_to_s3('data/run_log.json', run_log)
+
+    # Also append to run history (keep last 50 runs)
+    history = load_from_s3('data/run_history.json', [])
+    if not isinstance(history, list):
+        history = []
+
+    # Update or append
+    existing_idx = next((i for i, r in enumerate(history) if r.get('run_id') == run_log['run_id']), None)
+    if existing_idx is not None:
+        history[existing_idx] = run_log
+    else:
+        history.insert(0, run_log)
+
+    # Keep only last 50 runs
+    history = history[:50]
+    save_to_s3('data/run_history.json', history)
 
 
 def update_reports_index():
@@ -416,14 +499,34 @@ def update_reports_index():
 
 def lambda_handler(event, context):
     """AWS Lambda entry point."""
+    start_time = datetime.now()
+
     print("=" * 60)
     print("FINN.no Job Scanner - AWS Lambda Execution")
-    print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
+
+    # Initialize run log
+    run_log = {
+        'run_id': start_time.strftime('%Y%m%d_%H%M%S'),
+        'start_time': start_time.isoformat(),
+        'status': 'running',
+        'source': event.get('source', 'scheduled'),
+        'profiles': [],
+        'summary': {},
+        'errors': []
+    }
+
+    # Save initial log
+    save_run_log(run_log)
 
     # Get API key
     api_key = get_api_key()
     if not api_key:
+        run_log['status'] = 'error'
+        run_log['errors'].append('Could not retrieve API key from Secrets Manager')
+        run_log['end_time'] = datetime.now().isoformat()
+        save_run_log(run_log)
         return {
             'statusCode': 500,
             'body': json.dumps({'error': 'Could not retrieve API key'})
@@ -461,7 +564,7 @@ def lambda_handler(event, context):
     all_analyzed_jobs = []
 
     for profile_id, profile_config in profiles.items():
-        jobs = process_profile(profile_id, profile_config, analyzed_history, api_key)
+        jobs = process_profile(profile_id, profile_config, analyzed_history, api_key, run_log)
         all_analyzed_jobs.extend(jobs)
 
     # Generate and save report
@@ -485,6 +588,21 @@ def lambda_handler(event, context):
 
     # Summary
     total_history = sum(len(jobs) for jobs in analyzed_history.values() if isinstance(jobs, dict))
+    end_time = datetime.now()
+    duration_seconds = (end_time - start_time).total_seconds()
+
+    # Finalize run log
+    run_log['status'] = 'complete'
+    run_log['end_time'] = end_time.isoformat()
+    run_log['duration_seconds'] = round(duration_seconds, 1)
+    run_log['summary'] = {
+        'jobs_analyzed': len(all_analyzed_jobs),
+        'profiles_processed': len(profiles),
+        'total_in_history': total_history,
+        'high_matches': len([j for j in all_analyzed_jobs if j.get('score', 0) >= 70]),
+        'medium_matches': len([j for j in all_analyzed_jobs if 40 <= j.get('score', 0) < 70]),
+    }
+    save_run_log(run_log)
 
     result = {
         'statusCode': 200,
@@ -500,6 +618,7 @@ def lambda_handler(event, context):
     print("Scan complete!")
     print(f"Total new jobs analyzed: {len(all_analyzed_jobs)}")
     print(f"Total jobs in history: {total_history}")
+    print(f"Duration: {duration_seconds:.1f} seconds")
     print("=" * 60)
 
     return result
