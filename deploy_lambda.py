@@ -185,13 +185,24 @@ def store_api_key():
 
 
 def upload_config():
-    """Upload search profiles configuration to S3."""
-    print("\n[3/6] Uploading search profiles configuration...")
+    """Upload search profiles configuration to S3 (only if none exists)."""
+    print("\n[3/6] Checking search profiles configuration...")
 
-    # Load local config
+    # Check if config already exists in S3
+    existing = run_aws([
+        "s3", "ls",
+        f"s3://{BUCKET_NAME}/config/search_profiles.json"
+    ])
+
+    if existing:
+        print("  Config already exists in S3 (managed via web UI)")
+        print("  Skipping upload to preserve web UI changes")
+        return True
+
+    # No config in S3 - upload from local config.py (first-time setup)
+    print("  No config in S3, uploading from config.py...")
+
     config_file = BASE_DIR / "config.py"
-
-    # Extract SEARCH_PROFILES from config.py
     config_globals = {}
     exec(open(config_file).read(), config_globals)
     search_profiles = config_globals.get('SEARCH_PROFILES', {})
@@ -200,12 +211,11 @@ def upload_config():
         print("  Warning: No SEARCH_PROFILES found in config.py")
         return False
 
-    # Upload to S3
     config_path = BASE_DIR / "search_profiles_temp.json"
     with open(config_path, 'w') as f:
         json.dump(search_profiles, f, indent=2)
 
-    result = run_aws([
+    run_aws([
         "s3", "cp",
         str(config_path),
         f"s3://{BUCKET_NAME}/config/search_profiles.json",
@@ -213,12 +223,8 @@ def upload_config():
     ])
 
     config_path.unlink()
-
-    if result is not None or run_aws(["s3", "ls", f"s3://{BUCKET_NAME}/config/search_profiles.json"]):
-        print(f"  Uploaded search profiles to S3")
-        return True
-
-    return False
+    print("  Uploaded initial search profiles to S3")
+    return True
 
 
 def create_lambda_package():
