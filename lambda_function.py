@@ -59,12 +59,19 @@ def save_to_s3(key, data, content_type='application/json'):
         else:
             body = data
 
-        s3.put_object(
-            Bucket=BUCKET_NAME,
-            Key=key,
-            Body=body.encode('utf-8'),
-            ContentType=content_type
-        )
+        # Set no-cache for data files to prevent stale dashboard data
+        cache_control = 'no-cache, no-store, must-revalidate' if key.startswith('data/') else None
+
+        params = {
+            'Bucket': BUCKET_NAME,
+            'Key': key,
+            'Body': body.encode('utf-8'),
+            'ContentType': content_type
+        }
+        if cache_control:
+            params['CacheControl'] = cache_control
+
+        s3.put_object(**params)
         return True
     except Exception as e:
         print(f"Error saving {key} to S3: {e}")
