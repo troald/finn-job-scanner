@@ -7,7 +7,7 @@ import os
 import json
 import boto3
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import anthropic
 import re
@@ -536,6 +536,62 @@ def update_reports_index():
         print(f"Error updating reports index: {e}")
 
 
+def cleanup_old_data(days_to_keep=10):
+    """Remove reports and job data older than specified days."""
+    print(f"\nCleaning up data older than {days_to_keep} days...")
+
+    cutoff_date = datetime.now() - timedelta(days=days_to_keep)
+    cutoff_str = cutoff_date.strftime('%Y-%m-%d')
+    deleted_reports = 0
+    deleted_jobs = 0
+
+    try:
+        # Clean up old reports
+        response = s3.list_objects_v2(
+            Bucket=BUCKET_NAME,
+            Prefix='data/reports/job_report_'
+        )
+
+        for obj in response.get('Contents', []):
+            filename = obj['Key'].split('/')[-1]
+            date_str = filename.replace('job_report_', '').replace('.md', '')
+            try:
+                report_date = datetime.strptime(date_str, '%Y%m%d')
+                if report_date < cutoff_date:
+                    s3.delete_object(Bucket=BUCKET_NAME, Key=obj['Key'])
+                    deleted_reports += 1
+                    print(f"  Deleted old report: {filename}")
+            except ValueError:
+                continue
+
+        # Clean up old job entries from analyzed_jobs.json
+        analyzed_history = load_from_s3('data/analyzed_jobs.json', {})
+
+        for profile_id, profile_jobs in analyzed_history.items():
+            if isinstance(profile_jobs, dict):
+                jobs_to_delete = []
+                for finn_code, job in profile_jobs.items():
+                    job_date = job.get('analyzed_date', '')
+                    if job_date and job_date < cutoff_str:
+                        jobs_to_delete.append(finn_code)
+
+                for finn_code in jobs_to_delete:
+                    del profile_jobs[finn_code]
+                    deleted_jobs += 1
+
+        if deleted_jobs > 0:
+            save_to_s3('data/analyzed_jobs.json', analyzed_history)
+            print(f"  Removed {deleted_jobs} old job entries")
+
+        if deleted_reports > 0 or deleted_jobs > 0:
+            print(f"  Cleanup complete: {deleted_reports} reports, {deleted_jobs} jobs removed")
+        else:
+            print("  No old data to clean up")
+
+    except Exception as e:
+        print(f"Error during cleanup: {e}")
+
+
 def lambda_handler(event, context):
     """AWS Lambda entry point."""
     start_time = datetime.now()
@@ -624,6 +680,9 @@ def lambda_handler(event, context):
 
     # Update reports index
     update_reports_index()
+
+    # Clean up old data (older than 10 days)
+    cleanup_old_data(days_to_keep=10)
 
     # Summary
     total_history = sum(len(jobs) for jobs in analyzed_history.values() if isinstance(jobs, dict))
