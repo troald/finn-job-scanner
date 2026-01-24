@@ -993,7 +993,9 @@
                     if (profile.error) {
                         html += `<span style="color:var(--score-low)">Error</span>`;
                     } else {
-                        html += `Found: ${profile.jobs_found} | Analyzed: ${profile.jobs_analyzed}`;
+                        html += `Found: ${profile.jobs_found}`;
+                        if (profile.limited) html += ` (limit reached)`;
+                        html += ` | Analyzed: ${profile.jobs_analyzed}`;
                         if (profile.jobs_skipped > 0) html += ` | Skipped: ${profile.jobs_skipped}`;
                     }
 

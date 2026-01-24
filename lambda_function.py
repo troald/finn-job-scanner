@@ -72,7 +72,11 @@ def save_to_s3(key, data, content_type='application/json'):
 
 
 def fetch_finn_search_results(search_url, max_jobs):
-    """Fetch job listings from FINN.no search page with pagination support."""
+    """Fetch job listings from FINN.no search page with pagination support.
+
+    Returns:
+        dict with 'jobs' list and 'limited' boolean indicating if max_jobs was hit
+    """
     print(f"  Fetching from: {search_url[:80]}...")
 
     headers = {
@@ -85,6 +89,7 @@ def fetch_finn_search_results(search_url, max_jobs):
     seen_codes = set()
     page = 1
     max_pages = 10  # Safety limit
+    hit_limit = False
 
     while len(all_jobs) < max_jobs and page <= max_pages:
         # Build URL with page parameter
@@ -122,6 +127,7 @@ def fetch_finn_search_results(search_url, max_jobs):
                 jobs_on_page += 1
 
                 if len(all_jobs) >= max_jobs:
+                    hit_limit = True
                     break
 
         # No more jobs on this page = end of results
@@ -130,8 +136,9 @@ def fetch_finn_search_results(search_url, max_jobs):
 
         page += 1
 
-    print(f"  Found {len(all_jobs)} job listings across {page} page(s)")
-    return all_jobs[:max_jobs]
+    status = f"(limit: {max_jobs})" if hit_limit else "(all available)"
+    print(f"  Found {len(all_jobs)} job listings across {page} page(s) {status}")
+    return {'jobs': all_jobs[:max_jobs], 'limited': hit_limit, 'pages': page}
 
 
 def fetch_job_details(job_url):
@@ -351,8 +358,11 @@ def process_profile(profile_id, profile_config, analyzed_history, api_key, run_l
     profile_history = analyzed_history[profile_id]
 
     try:
-        job_listings = fetch_finn_search_results(search_url, max_jobs)
+        fetch_result = fetch_finn_search_results(search_url, max_jobs)
+        job_listings = fetch_result['jobs']
         profile_log['jobs_found'] = len(job_listings)
+        profile_log['limited'] = fetch_result['limited']
+        profile_log['pages_fetched'] = fetch_result['pages']
     except Exception as e:
         error_msg = str(e)
         print(f"  Error fetching jobs: {error_msg}")
