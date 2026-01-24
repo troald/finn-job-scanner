@@ -222,43 +222,97 @@ def upload_config():
 
 
 def create_lambda_package():
-    """Create Lambda deployment package with dependencies."""
+    """Create Lambda deployment package with dependencies using Docker."""
     print("\n[4/6] Creating Lambda deployment package...")
 
-    # Create temp directory
-    temp_dir = tempfile.mkdtemp()
-    package_dir = Path(temp_dir) / "package"
-    package_dir.mkdir()
+    zip_path = BASE_DIR / "lambda_package.zip"
 
+    # Check if Docker is available
     try:
-        # Install dependencies
-        print("  Installing dependencies...")
-        subprocess.run([
-            sys.executable, "-m", "pip", "install",
-            "anthropic", "requests", "beautifulsoup4",
-            "-t", str(package_dir),
-            "--quiet"
-        ], check=True)
+        docker_check = subprocess.run(["docker", "info"], capture_output=True)
+        use_docker = docker_check.returncode == 0
+    except FileNotFoundError:
+        use_docker = False
 
-        # Copy lambda function
-        shutil.copy(BASE_DIR / "lambda_function.py", package_dir / "lambda_function.py")
+    if use_docker:
+        print("  Using Docker for Linux-compatible dependencies...")
 
-        # Create zip file
-        zip_path = BASE_DIR / "lambda_package.zip"
-        print(f"  Creating {zip_path}...")
+        # Create temp directory for Docker build
+        temp_dir = tempfile.mkdtemp()
+        package_dir = Path(temp_dir) / "package"
+        package_dir.mkdir()
 
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for root, dirs, files in os.walk(package_dir):
-                for file in files:
-                    file_path = Path(root) / file
-                    arcname = file_path.relative_to(package_dir)
-                    zipf.write(file_path, arcname)
+        try:
+            # Copy lambda function to temp dir
+            shutil.copy(BASE_DIR / "lambda_function.py", temp_dir)
 
-        print(f"  Package created: {zip_path.stat().st_size / 1024 / 1024:.1f} MB")
-        return zip_path
+            # Create requirements file
+            requirements = temp_dir + "/requirements.txt"
+            with open(requirements, 'w') as f:
+                f.write("anthropic\nrequests\nbeautifulsoup4\n")
 
-    finally:
-        shutil.rmtree(temp_dir)
+            # Run pip install inside Docker container with Lambda Python runtime
+            print("  Installing dependencies in Docker container...")
+            subprocess.run([
+                "docker", "run", "--rm",
+                "-v", f"{temp_dir}:/var/task",
+                "public.ecr.aws/lambda/python:3.11",
+                "pip", "install", "-r", "/var/task/requirements.txt",
+                "-t", "/var/task/package", "--quiet"
+            ], check=True)
+
+            # Copy lambda function to package
+            shutil.copy(temp_dir + "/lambda_function.py", str(package_dir) + "/lambda_function.py")
+
+            # Create zip file
+            print(f"  Creating {zip_path}...")
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, dirs, files in os.walk(package_dir):
+                    for file in files:
+                        file_path = Path(root) / file
+                        arcname = file_path.relative_to(package_dir)
+                        zipf.write(file_path, arcname)
+
+            print(f"  Package created: {zip_path.stat().st_size / 1024 / 1024:.1f} MB")
+            return zip_path
+
+        finally:
+            shutil.rmtree(temp_dir)
+    else:
+        print("  Docker not available, using pip with Linux platform targeting...")
+
+        # Use pip with platform targeting to get Linux wheels
+        temp_dir = tempfile.mkdtemp()
+        package_dir = Path(temp_dir) / "package"
+        package_dir.mkdir()
+
+        try:
+            # Install with Linux platform targeting
+            subprocess.run([
+                sys.executable, "-m", "pip", "install",
+                "anthropic", "requests", "beautifulsoup4",
+                "-t", str(package_dir),
+                "--platform", "manylinux2014_x86_64",
+                "--implementation", "cp",
+                "--python-version", "3.11",
+                "--only-binary=:all:",
+                "--quiet"
+            ], check=True)
+
+            shutil.copy(BASE_DIR / "lambda_function.py", package_dir / "lambda_function.py")
+
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, dirs, files in os.walk(package_dir):
+                    for file in files:
+                        file_path = Path(root) / file
+                        arcname = file_path.relative_to(package_dir)
+                        zipf.write(file_path, arcname)
+
+            print(f"  Package created: {zip_path.stat().st_size / 1024 / 1024:.1f} MB")
+            return zip_path
+
+        finally:
+            shutil.rmtree(temp_dir)
 
 
 def create_lambda_function(role_arn, zip_path):
