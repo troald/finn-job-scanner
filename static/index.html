@@ -24,11 +24,7 @@
             --gradient-subtle: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'DM Sans', sans-serif;
@@ -41,26 +37,20 @@
         body::before {
             content: '';
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             opacity: 0.03;
             pointer-events: none;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
             z-index: 1000;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 2rem;
-        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 0 2rem; }
 
         header {
             padding: 3rem 0 2rem;
             border-bottom: 1px solid var(--border);
-            margin-bottom: 3rem;
+            margin-bottom: 2rem;
         }
 
         .logo {
@@ -72,10 +62,7 @@
             margin-bottom: 0.5rem;
         }
 
-        .logo span {
-            font-style: italic;
-            color: var(--text-secondary);
-        }
+        .logo span { font-style: italic; color: var(--text-secondary); }
 
         .tagline {
             font-size: 0.875rem;
@@ -93,7 +80,7 @@
         nav {
             display: flex;
             gap: 0.5rem;
-            margin-bottom: 3rem;
+            margin-bottom: 2rem;
         }
 
         .nav-btn {
@@ -108,22 +95,48 @@
             border-radius: 2px;
         }
 
-        .nav-btn:hover {
-            background: var(--bg-card);
-            color: var(--text-primary);
+        .nav-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+        .nav-btn.active { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
+
+        /* Profile Filter */
+        .profile-filter {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
         }
 
-        .nav-btn.active {
-            background: var(--accent);
-            color: var(--bg-primary);
-            border-color: var(--accent);
+        .profile-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.8125rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 2px;
         }
+
+        .profile-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+        .profile-btn.active { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
+
+        .profile-btn .count {
+            display: inline-block;
+            margin-left: 0.5rem;
+            padding: 0.125rem 0.375rem;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            font-size: 0.75rem;
+        }
+
+        .profile-btn.active .count { background: rgba(0,0,0,0.2); }
 
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 1.5rem;
-            margin-bottom: 3rem;
+            margin-bottom: 2rem;
         }
 
         .stat-card {
@@ -138,10 +151,8 @@
         .stat-card::after {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
+            top: 0; left: 0;
+            width: 100%; height: 2px;
             background: linear-gradient(90deg, transparent, var(--accent), transparent);
             opacity: 0.3;
         }
@@ -179,16 +190,9 @@
             font-weight: 400;
         }
 
-        .section-count {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-        }
+        .section-count { font-size: 0.875rem; color: var(--text-muted); }
 
-        .jobs-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 3rem;
-        }
+        .jobs-table { width: 100%; border-collapse: collapse; margin-bottom: 3rem; }
 
         .jobs-table th {
             text-align: left;
@@ -207,23 +211,21 @@
             vertical-align: middle;
         }
 
-        .jobs-table tr {
-            transition: background 0.15s ease;
-        }
+        .jobs-table tr { transition: background 0.15s ease; }
+        .jobs-table tbody tr:hover { background: var(--bg-hover); }
 
-        .jobs-table tbody tr:hover {
-            background: var(--bg-hover);
-        }
+        .job-title { font-weight: 500; color: var(--text-primary); margin-bottom: 0.25rem; }
+        .job-company { font-size: 0.875rem; color: var(--text-secondary); }
 
-        .job-title {
-            font-weight: 500;
-            color: var(--text-primary);
-            margin-bottom: 0.25rem;
-        }
-
-        .job-company {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
+        .job-profile {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
         }
 
         .score-badge {
@@ -238,28 +240,11 @@
             font-weight: 400;
         }
 
-        .score-badge.high {
-            background: rgba(74, 222, 128, 0.1);
-            color: var(--score-high);
-            border: 1px solid rgba(74, 222, 128, 0.3);
-        }
+        .score-badge.high { background: rgba(74, 222, 128, 0.1); color: var(--score-high); border: 1px solid rgba(74, 222, 128, 0.3); }
+        .score-badge.mid { background: rgba(251, 191, 36, 0.1); color: var(--score-mid); border: 1px solid rgba(251, 191, 36, 0.3); }
+        .score-badge.low { background: rgba(248, 113, 113, 0.1); color: var(--score-low); border: 1px solid rgba(248, 113, 113, 0.3); }
 
-        .score-badge.mid {
-            background: rgba(251, 191, 36, 0.1);
-            color: var(--score-mid);
-            border: 1px solid rgba(251, 191, 36, 0.3);
-        }
-
-        .score-badge.low {
-            background: rgba(248, 113, 113, 0.1);
-            color: var(--score-low);
-            border: 1px solid rgba(248, 113, 113, 0.3);
-        }
-
-        .date-cell {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-        }
+        .date-cell { font-size: 0.875rem; color: var(--text-secondary); }
 
         .link-btn {
             display: inline-flex;
@@ -275,11 +260,7 @@
             border-radius: 2px;
         }
 
-        .link-btn:hover {
-            background: var(--accent);
-            color: var(--bg-primary);
-            border-color: var(--accent);
-        }
+        .link-btn:hover { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
 
         .reports-grid {
             display: grid;
@@ -288,11 +269,7 @@
             margin-bottom: 3rem;
         }
 
-        .reports-list {
-            border: 1px solid var(--border);
-            border-radius: 3px;
-            overflow: hidden;
-        }
+        .reports-list { border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
 
         .report-item {
             padding: 1rem 1.25rem;
@@ -301,29 +278,12 @@
             transition: all 0.15s ease;
         }
 
-        .report-item:last-child {
-            border-bottom: none;
-        }
+        .report-item:last-child { border-bottom: none; }
+        .report-item:hover { background: var(--bg-hover); }
+        .report-item.active { background: var(--bg-card); border-left: 2px solid var(--accent); }
 
-        .report-item:hover {
-            background: var(--bg-hover);
-        }
-
-        .report-item.active {
-            background: var(--bg-card);
-            border-left: 2px solid var(--accent);
-        }
-
-        .report-date {
-            font-family: 'Instrument Serif', serif;
-            font-size: 1.125rem;
-            margin-bottom: 0.25rem;
-        }
-
-        .report-meta {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-        }
+        .report-date { font-family: 'Instrument Serif', serif; font-size: 1.125rem; margin-bottom: 0.25rem; }
+        .report-meta { font-size: 0.75rem; color: var(--text-muted); }
 
         .report-content {
             background: var(--bg-card);
@@ -333,86 +293,19 @@
             min-height: 500px;
         }
 
-        .report-content h1 {
-            font-family: 'Instrument Serif', serif;
-            font-size: 2rem;
-            font-weight: 400;
-            margin-bottom: 1.5rem;
-            color: var(--accent);
-        }
-
-        .report-content h2 {
-            font-family: 'Instrument Serif', serif;
-            font-size: 1.5rem;
-            font-weight: 400;
-            margin: 2rem 0 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .report-content h3 {
-            font-size: 1.125rem;
-            font-weight: 500;
-            margin: 1.5rem 0 0.75rem;
-        }
-
-        .report-content p {
-            margin-bottom: 1rem;
-            color: var(--text-secondary);
-        }
-
-        .report-content strong {
-            color: var(--text-primary);
-        }
-
-        .report-content table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 1.5rem 0;
-            font-size: 0.875rem;
-        }
-
-        .report-content th,
-        .report-content td {
-            padding: 0.75rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .report-content th {
-            color: var(--text-muted);
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-size: 0.75rem;
-        }
-
-        .report-content a {
-            color: var(--accent);
-            text-decoration: none;
-            border-bottom: 1px solid transparent;
-            transition: border-color 0.15s ease;
-        }
-
-        .report-content a:hover {
-            border-color: var(--accent);
-        }
-
-        .report-content hr {
-            border: none;
-            border-top: 1px solid var(--border);
-            margin: 2rem 0;
-        }
-
-        .report-content ul, .report-content ol {
-            margin: 1rem 0;
-            padding-left: 1.5rem;
-            color: var(--text-secondary);
-        }
-
-        .report-content li {
-            margin-bottom: 0.5rem;
-        }
+        .report-content h1 { font-family: 'Instrument Serif', serif; font-size: 2rem; font-weight: 400; margin-bottom: 1.5rem; color: var(--accent); }
+        .report-content h2 { font-family: 'Instrument Serif', serif; font-size: 1.5rem; font-weight: 400; margin: 2rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+        .report-content h3 { font-size: 1.125rem; font-weight: 500; margin: 1.5rem 0 0.75rem; }
+        .report-content p { margin-bottom: 1rem; color: var(--text-secondary); }
+        .report-content strong { color: var(--text-primary); }
+        .report-content table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.875rem; }
+        .report-content th, .report-content td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+        .report-content th { color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.75rem; }
+        .report-content a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 0.15s ease; }
+        .report-content a:hover { border-color: var(--accent); }
+        .report-content hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+        .report-content ul, .report-content ol { margin: 1rem 0; padding-left: 1.5rem; color: var(--text-secondary); }
+        .report-content li { margin-bottom: 0.5rem; }
 
         .empty-state {
             display: flex;
@@ -424,25 +317,12 @@
             text-align: center;
         }
 
-        .empty-state-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
+        .empty-state-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
 
-        .view {
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
+        .view { display: none; animation: fadeIn 0.3s ease; }
+        .view.active { display: block; }
 
-        .view.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .loading {
             display: flex;
@@ -463,29 +343,17 @@
             margin-left: 0.75rem;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         @media (max-width: 1024px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .reports-grid {
-                grid-template-columns: 1fr;
-            }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .reports-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 640px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-            .container {
-                padding: 0 1rem;
-            }
-            .logo {
-                font-size: 2rem;
-            }
+            .stats-grid { grid-template-columns: 1fr; }
+            .container { padding: 0 1rem; }
+            .logo { font-size: 2rem; }
         }
     </style>
 </head>
@@ -503,6 +371,10 @@
         </nav>
 
         <div id="dashboard" class="view active">
+            <div class="profile-filter" id="profile-filter">
+                <button class="profile-btn active" data-profile="all">All Profiles</button>
+            </div>
+
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-value" id="total-jobs">-</div>
@@ -565,6 +437,9 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
         const DATA_BASE = './data';
+        let allJobs = {};
+        let profiles = {};
+        let currentProfile = 'all';
 
         // Navigation
         document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -576,68 +451,162 @@
             });
         });
 
+        // Flatten nested job structure into array
+        function flattenJobs(jobsData) {
+            const jobs = [];
+            for (const [profileId, profileJobs] of Object.entries(jobsData)) {
+                if (typeof profileJobs === 'object' && profileJobs !== null) {
+                    for (const [finnCode, job] of Object.entries(profileJobs)) {
+                        if (job.title) {  // Skip if not a job object
+                            jobs.push({
+                                finnCode,
+                                profileId,
+                                ...job
+                            });
+                        }
+                    }
+                }
+            }
+            return jobs;
+        }
+
+        // Filter jobs by profile
+        function filterJobs(jobs, profileId) {
+            if (profileId === 'all') return jobs;
+            return jobs.filter(j => j.profileId === profileId || j.profile_id === profileId);
+        }
+
+        // Update stats
+        function updateStats(jobs) {
+            const total = jobs.length;
+            const high = jobs.filter(j => j.score >= 70).length;
+            const mid = jobs.filter(j => j.score >= 40 && j.score < 70).length;
+            const low = jobs.filter(j => j.score < 40).length;
+
+            document.getElementById('total-jobs').textContent = total;
+            document.getElementById('high-match').textContent = high;
+            document.getElementById('mid-match').textContent = mid;
+            document.getElementById('low-match').textContent = low;
+            document.getElementById('jobs-count').textContent = `${total} jobs`;
+        }
+
+        // Render jobs table
+        function renderJobs(jobs) {
+            const tbody = document.getElementById('jobs-tbody');
+            tbody.innerHTML = '';
+
+            const sortedJobs = jobs.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+            if (sortedJobs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">&#128269;</div>
+                                <p>No jobs found for this filter.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            sortedJobs.forEach(job => {
+                const scoreClass = job.score >= 70 ? 'high' : job.score >= 40 ? 'mid' : 'low';
+                const profileName = job.profile_name || profiles[job.profileId]?.name || job.profileId || '';
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><span class="score-badge ${scoreClass}">${job.score || 0}</span></td>
+                    <td>
+                        <div class="job-title">${escapeHtml(job.title || 'Unknown')}</div>
+                        <div class="job-company">${escapeHtml(job.company || 'Unknown company')}</div>
+                        ${profileName ? `<span class="job-profile">${escapeHtml(profileName)}</span>` : ''}
+                    </td>
+                    <td class="date-cell">${job.analyzed_date || 'N/A'}</td>
+                    <td>
+                        <a href="https://www.finn.no/job/ad/${job.finnCode}" target="_blank" class="link-btn">
+                            View on FINN &#8594;
+                        </a>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Build profile filter buttons
+        function buildProfileFilter(jobs) {
+            const filter = document.getElementById('profile-filter');
+            filter.innerHTML = '';
+
+            // Count jobs per profile
+            const profileCounts = { all: jobs.length };
+            jobs.forEach(job => {
+                const pid = job.profileId || job.profile_id || 'unknown';
+                profileCounts[pid] = (profileCounts[pid] || 0) + 1;
+            });
+
+            // All button
+            const allBtn = document.createElement('button');
+            allBtn.className = 'profile-btn active';
+            allBtn.dataset.profile = 'all';
+            allBtn.innerHTML = `All Profiles <span class="count">${profileCounts.all}</span>`;
+            allBtn.addEventListener('click', () => selectProfile('all'));
+            filter.appendChild(allBtn);
+
+            // Profile buttons
+            const profileIds = [...new Set(jobs.map(j => j.profileId || j.profile_id))].filter(Boolean);
+            profileIds.forEach(pid => {
+                const name = profiles[pid]?.name || pid;
+                const count = profileCounts[pid] || 0;
+                const btn = document.createElement('button');
+                btn.className = 'profile-btn';
+                btn.dataset.profile = pid;
+                btn.innerHTML = `${escapeHtml(name)} <span class="count">${count}</span>`;
+                btn.addEventListener('click', () => selectProfile(pid));
+                filter.appendChild(btn);
+            });
+        }
+
+        // Select profile
+        function selectProfile(profileId) {
+            currentProfile = profileId;
+            document.querySelectorAll('.profile-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.profile === profileId);
+            });
+
+            const jobs = flattenJobs(allJobs);
+            const filtered = filterJobs(jobs, profileId);
+            updateStats(filtered);
+            renderJobs(filtered);
+        }
+
         // Load dashboard data
         async function loadDashboard() {
             try {
+                // Load profiles first
+                try {
+                    const profilesRes = await fetch(`${DATA_BASE}/profiles.json`);
+                    if (profilesRes.ok) {
+                        profiles = await profilesRes.json();
+                    }
+                } catch (e) { /* profiles optional */ }
+
                 const response = await fetch(`${DATA_BASE}/analyzed_jobs.json`);
                 if (!response.ok) throw new Error('No data yet');
-                const jobs = await response.json();
+                allJobs = await response.json();
 
-                const total = Object.keys(jobs).length;
-                const high = Object.values(jobs).filter(j => j.score >= 70).length;
-                const mid = Object.values(jobs).filter(j => j.score >= 40 && j.score < 70).length;
-                const low = Object.values(jobs).filter(j => j.score < 40).length;
-
-                document.getElementById('total-jobs').textContent = total;
-                document.getElementById('high-match').textContent = high;
-                document.getElementById('mid-match').textContent = mid;
-                document.getElementById('low-match').textContent = low;
-                document.getElementById('jobs-count').textContent = `${total} jobs`;
+                const jobs = flattenJobs(allJobs);
 
                 // Find most recent date
-                const dates = Object.values(jobs).map(j => j.analyzed_date).filter(Boolean).sort().reverse();
+                const dates = jobs.map(j => j.analyzed_date).filter(Boolean).sort().reverse();
                 if (dates.length > 0) {
                     document.getElementById('last-updated').textContent = `Last scan: ${dates[0]}`;
                 }
 
-                const tbody = document.getElementById('jobs-tbody');
-                tbody.innerHTML = '';
+                buildProfileFilter(jobs);
+                updateStats(jobs);
+                renderJobs(jobs);
 
-                const sortedJobs = Object.entries(jobs)
-                    .sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
-
-                if (sortedJobs.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="4">
-                                <div class="empty-state">
-                                    <div class="empty-state-icon">&#128269;</div>
-                                    <p>No jobs analyzed yet. Run the scanner first.</p>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                    return;
-                }
-
-                sortedJobs.forEach(([finnCode, job]) => {
-                    const scoreClass = job.score >= 70 ? 'high' : job.score >= 40 ? 'mid' : 'low';
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td><span class="score-badge ${scoreClass}">${job.score || 0}</span></td>
-                        <td>
-                            <div class="job-title">${escapeHtml(job.title || 'Unknown')}</div>
-                            <div class="job-company">${escapeHtml(job.company || 'Unknown company')}</div>
-                        </td>
-                        <td class="date-cell">${job.analyzed_date || 'N/A'}</td>
-                        <td>
-                            <a href="https://www.finn.no/job/ad/${finnCode}" target="_blank" class="link-btn">
-                                View on FINN &#8594;
-                            </a>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
             } catch (error) {
                 console.error('Failed to load jobs:', error);
                 document.getElementById('jobs-tbody').innerHTML = `
@@ -671,11 +640,7 @@
                 list.innerHTML = '';
 
                 if (reports.length === 0) {
-                    list.innerHTML = `
-                        <div class="empty-state" style="height: 200px;">
-                            <p>No reports generated yet</p>
-                        </div>
-                    `;
+                    list.innerHTML = `<div class="empty-state" style="height: 200px;"><p>No reports generated yet</p></div>`;
                     return;
                 }
 
@@ -696,11 +661,7 @@
                 }
             } catch (error) {
                 console.error('Failed to load reports:', error);
-                document.getElementById('reports-list').innerHTML = `
-                    <div class="empty-state" style="height: 200px;">
-                        <p>No reports available yet</p>
-                    </div>
-                `;
+                document.getElementById('reports-list').innerHTML = `<div class="empty-state" style="height: 200px;"><p>No reports available yet</p></div>`;
                 document.getElementById('reports-count').textContent = '0 reports';
             }
         }
