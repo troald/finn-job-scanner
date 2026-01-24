@@ -494,6 +494,41 @@
 
         .date-cell { font-size: 0.875rem; color: var(--text-secondary); }
 
+        .job-row { cursor: pointer; }
+        .job-row:hover .job-title { color: var(--accent); }
+
+        .reasoning-row { display: none; }
+        .reasoning-row.expanded { display: table-row; }
+        .reasoning-row td {
+            padding: 0 1rem 1rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .reasoning-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1rem;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .reasoning-content strong {
+            color: var(--text-primary);
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .expand-indicator {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-left: 0.5rem;
+        }
+
         .link-btn, .btn {
             display: inline-flex;
             align-items: center;
@@ -1224,22 +1259,48 @@
                 return;
             }
 
-            sortedJobs.forEach(job => {
+            sortedJobs.forEach((job, index) => {
                 const scoreClass = job.score >= 70 ? 'high' : job.score >= 40 ? 'mid' : 'low';
                 const profileName = job.profile_name || profiles[job.profileId]?.name || job.profileId || '';
+                const rowId = `job-${index}`;
+
+                // Main job row
                 const row = document.createElement('tr');
+                row.className = 'job-row';
+                row.onclick = () => toggleReasoning(rowId);
                 row.innerHTML = `
                     <td><span class="score-badge ${scoreClass}">${job.score || 0}</span></td>
                     <td>
-                        <div class="job-title">${escapeHtml(job.title || 'Unknown')}</div>
+                        <div class="job-title">${escapeHtml(job.title || 'Unknown')}<span class="expand-indicator">▼</span></div>
                         <div class="job-company">${escapeHtml(job.company || 'Unknown company')}</div>
                         ${profileName ? `<span class="job-profile">${escapeHtml(profileName)}</span>` : ''}
                     </td>
                     <td class="date-cell">${job.analyzed_date || 'N/A'}</td>
-                    <td><a href="https://www.finn.no/job/ad/${job.finnCode}" target="_blank" class="link-btn">View &#8594;</a></td>
+                    <td><a href="https://www.finn.no/job/ad/${job.finnCode}" target="_blank" class="link-btn" onclick="event.stopPropagation()">View &#8594;</a></td>
                 `;
                 tbody.appendChild(row);
+
+                // Reasoning row (hidden by default)
+                const reasoningRow = document.createElement('tr');
+                reasoningRow.className = 'reasoning-row';
+                reasoningRow.id = rowId;
+                reasoningRow.innerHTML = `
+                    <td colspan="4">
+                        <div class="reasoning-content">
+                            <strong>AI Assessment</strong>
+                            ${escapeHtml(job.reasoning || 'No assessment available')}
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(reasoningRow);
             });
+        }
+
+        function toggleReasoning(rowId) {
+            const row = document.getElementById(rowId);
+            if (row) {
+                row.classList.toggle('expanded');
+            }
         }
 
         function buildProfileFilter(jobs) {
