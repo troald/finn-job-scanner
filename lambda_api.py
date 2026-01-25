@@ -2,17 +2,56 @@
 AWS Lambda API handler for managing job scanner profiles.
 Provides GET/PUT endpoints for search profiles configuration.
 Also supports POST /run to trigger the scanner manually.
+Requires X-API-Key header for authentication.
 """
 
 import json
 import boto3
 import os
+import hashlib
+import hmac
 
 s3 = boto3.client('s3')
 lambda_client = boto3.client('lambda')
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'job-scanner-dashboard-043760299039')
 SCANNER_FUNCTION = os.environ.get('SCANNER_FUNCTION', 'job-scanner')
 CONFIG_KEY = 'config/search_profiles.json'
+API_KEY_CONFIG = 'config/api_key.json'
+
+# Cache for API key to avoid S3 reads on every request
+_cached_api_key = None
+
+
+def get_api_key():
+    """Retrieve API key from S3 config."""
+    global _cached_api_key
+    if _cached_api_key:
+        return _cached_api_key
+
+    try:
+        response = s3.get_object(Bucket=BUCKET_NAME, Key=API_KEY_CONFIG)
+        data = json.loads(response['Body'].read().decode('utf-8'))
+        _cached_api_key = data.get('api_key', '')
+        return _cached_api_key
+    except Exception as e:
+        print(f"Error loading API key: {e}")
+        return None
+
+
+def verify_api_key(event):
+    """Verify the X-API-Key header matches the configured key."""
+    headers = event.get('headers', {})
+
+    # Headers can be lowercase in API Gateway v2
+    provided_key = headers.get('x-api-key') or headers.get('X-API-Key') or ''
+
+    stored_key = get_api_key()
+    if not stored_key:
+        print("Warning: No API key configured - denying request")
+        return False
+
+    # Use constant-time comparison to prevent timing attacks
+    return hmac.compare_digest(provided_key, stored_key)
 
 
 def lambda_handler(event, context):
@@ -23,7 +62,7 @@ def lambda_handler(event, context):
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, PUT, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key'
     }
 
     # Handle preflight
@@ -35,6 +74,14 @@ def lambda_handler(event, context):
             'statusCode': 200,
             'headers': headers,
             'body': ''
+        }
+
+    # Verify API key for all non-OPTIONS requests
+    if not verify_api_key(event):
+        return {
+            'statusCode': 401,
+            'headers': headers,
+            'body': json.dumps({'error': 'Unauthorized - Invalid or missing API key'})
         }
 
     try:

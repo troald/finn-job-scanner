@@ -1175,6 +1175,7 @@
         let scoreFilter50Plus = false;
         let editingProfileId = null;
         let apiUrl = '';
+        let apiKey = '';
         let notificationsOpen = false;
         let notificationPolling = null;
 
@@ -1185,8 +1186,17 @@
                 if (res.ok) {
                     const config = await res.json();
                     apiUrl = config.apiUrl || '';
+                    apiKey = config.apiKey || '';
                 }
             } catch (e) { /* API config optional */ }
+        }
+
+        // Helper to make authenticated API calls
+        function apiHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'X-API-Key': apiKey
+            };
         }
 
         // Notification Functions
@@ -1210,10 +1220,10 @@
         });
 
         async function loadNotifications() {
-            if (!apiUrl) return;
+            if (!apiUrl || !apiKey) return;
 
             try {
-                const res = await fetch(`${apiUrl}/notifications`);
+                const res = await fetch(`${apiUrl}/notifications`, { headers: apiHeaders() });
                 if (!res.ok) return;
 
                 const data = await res.json();
@@ -1281,10 +1291,19 @@
         }
 
         async function openNotification(id, url) {
+            // Validate URL before opening (security: prevent javascript: URLs)
+            if (!url || !url.startsWith('https://www.finn.no/')) {
+                console.error('Invalid notification URL');
+                return;
+            }
+
             // Mark as read
-            if (apiUrl) {
+            if (apiUrl && apiKey) {
                 try {
-                    await fetch(`${apiUrl}/notifications/${id}/read`, { method: 'PUT' });
+                    await fetch(`${apiUrl}/notifications/${id}/read`, {
+                        method: 'PUT',
+                        headers: apiHeaders()
+                    });
                     loadNotifications();
                 } catch (e) {}
             }
@@ -1295,10 +1314,13 @@
 
         async function markAllNotificationsRead(event) {
             event.stopPropagation();
-            if (!apiUrl) return;
+            if (!apiUrl || !apiKey) return;
 
             try {
-                await fetch(`${apiUrl}/notifications/read-all`, { method: 'PUT' });
+                await fetch(`${apiUrl}/notifications/read-all`, {
+                    method: 'PUT',
+                    headers: apiHeaders()
+                });
                 loadNotifications();
                 showToast('All notifications marked as read');
             } catch (e) {
@@ -1307,7 +1329,7 @@
         }
 
         function startNotificationPolling() {
-            if (!apiUrl) return;
+            if (!apiUrl || !apiKey) return;
 
             // Initial load
             loadNotifications();
@@ -1335,7 +1357,7 @@
             try {
                 const res = await fetch(`${apiUrl}/run`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: apiHeaders()
                 });
 
                 const data = await res.json();
@@ -1750,12 +1772,12 @@
             list.innerHTML = '<div class="loading">Loading</div>';
 
             try {
-                if (apiUrl) {
-                    const res = await fetch(`${apiUrl}/profiles`);
+                if (apiUrl && apiKey) {
+                    const res = await fetch(`${apiUrl}/profiles`, { headers: apiHeaders() });
                     if (res.ok) {
                         profilesConfig = await res.json();
                     }
-                } else {
+                } else if (!apiUrl) {
                     const res = await fetch(`${DATA_BASE}/../config/search_profiles.json`);
                     if (res.ok) profilesConfig = await res.json();
                 }
@@ -1921,10 +1943,10 @@
 
         async function saveAllProfiles() {
             try {
-                if (apiUrl) {
+                if (apiUrl && apiKey) {
                     const res = await fetch(`${apiUrl}/profiles`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: apiHeaders(),
                         body: JSON.stringify(profilesConfig)
                     });
                     if (!res.ok) throw new Error('Save failed');

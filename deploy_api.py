@@ -7,6 +7,7 @@ import json
 import subprocess
 import zipfile
 import time
+import secrets
 from pathlib import Path
 
 REGION = "eu-north-1"
@@ -102,7 +103,7 @@ def create_api_gateway():
             print(f"  API already exists: {api_id}")
             return api_id
 
-    # Create HTTP API
+    # Create HTTP API with CORS allowing X-API-Key header
     result = run_aws([
         "apigatewayv2", "create-api",
         "--name", API_NAME,
@@ -110,7 +111,7 @@ def create_api_gateway():
         "--cors-configuration", json.dumps({
             "AllowOrigins": ["*"],
             "AllowMethods": ["GET", "PUT", "POST", "OPTIONS"],
-            "AllowHeaders": ["Content-Type", "Authorization"]
+            "AllowHeaders": ["Content-Type", "Authorization", "X-API-Key"]
         }),
         "--query", "ApiId",
         "--output", "text"
@@ -278,12 +279,47 @@ def get_api_url(api_id):
     return api_url
 
 
-def update_dashboard(api_url):
-    """Update the static dashboard with the API URL."""
+def setup_api_key():
+    """Generate or retrieve API key for authentication."""
+    print("\n[6/6] Setting up API key authentication...")
+
+    # Check if API key already exists
+    result = run_aws([
+        "s3", "cp",
+        f"s3://{BUCKET_NAME}/config/api_key.json",
+        "-"
+    ])
+
+    if result:
+        try:
+            data = json.loads(result)
+            api_key = data.get('api_key')
+            if api_key:
+                print(f"  Using existing API key")
+                return api_key
+        except json.JSONDecodeError:
+            pass
+
+    # Generate new API key
+    api_key = secrets.token_urlsafe(32)
+    key_config = {"api_key": api_key}
+
+    subprocess.run([
+        "aws", "s3", "cp", "-",
+        f"s3://{BUCKET_NAME}/config/api_key.json",
+        "--content-type", "application/json"
+    ], input=json.dumps(key_config), text=True)
+
+    print(f"  Generated new API key")
+    return api_key
+
+
+def update_dashboard(api_url, api_key):
+    """Update the static dashboard with the API URL and key."""
     print("\nUpdating dashboard configuration...")
 
-    # Save API URL to S3 for dashboard to use
-    config = {"apiUrl": api_url}
+    # Save API URL and key to S3 for dashboard to use
+    config = {"apiUrl": api_url, "apiKey": api_key}
 
     subprocess.run([
         "aws", "s3", "cp", "-",
@@ -291,7 +327,7 @@ def update_dashboard(api_url):
         "--content-type", "application/json"
     ], input=json.dumps(config), text=True)
 
-    print("  Dashboard config updated")
+    print("  Dashboard config updated with API key")
 
 
 def main():
@@ -304,7 +340,8 @@ def main():
     setup_integration(api_id)
     add_invoke_permission()
     api_url = get_api_url(api_id)
-    update_dashboard(api_url)
+    api_key = setup_api_key()
+    update_dashboard(api_url, api_key)
 
     print("\n" + "=" * 60)
     print("API Deployment complete!")
