@@ -169,6 +169,33 @@ def setup_integration(api_id):
             "--target", f"integrations/{integration_id}"
         ])
 
+    # Create routes for /notifications
+    for method in ["GET", "OPTIONS"]:
+        run_aws([
+            "apigatewayv2", "create-route",
+            "--api-id", api_id,
+            "--route-key", f"{method} /notifications",
+            "--target", f"integrations/{integration_id}"
+        ])
+
+    # Create route for /notifications/read-all
+    for method in ["PUT", "OPTIONS"]:
+        run_aws([
+            "apigatewayv2", "create-route",
+            "--api-id", api_id,
+            "--route-key", f"{method} /notifications/read-all",
+            "--target", f"integrations/{integration_id}"
+        ])
+
+    # Create route for /notifications/{id}/read (using proxy for path param)
+    for method in ["PUT", "OPTIONS"]:
+        run_aws([
+            "apigatewayv2", "create-route",
+            "--api-id", api_id,
+            "--route-key", f"{method} /notifications/{{id}}/read",
+            "--target", f"integrations/{integration_id}"
+        ])
+
     # Add Lambda permission
     run_aws([
         "lambda", "add-permission",
@@ -291,9 +318,19 @@ API Endpoints:
   {api_url}/run
     POST - Trigger scanner manually
 
+  {api_url}/notifications
+    GET  - Get notifications (unread first)
+
+  {api_url}/notifications/read-all
+    PUT  - Mark all notifications as read
+
+  {api_url}/notifications/{{id}}/read
+    PUT  - Mark single notification as read
+
 Test with:
   curl {api_url}/profiles
   curl -X POST {api_url}/run
+  curl {api_url}/notifications
 """)
 
 

@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 import anthropic
 import re
 import time
+import uuid
 
 # AWS clients
 s3 = boto3.client('s3')
@@ -76,6 +77,42 @@ def save_to_s3(key, data, content_type='application/json'):
     except Exception as e:
         print(f"Error saving {key} to S3: {e}")
         return False
+
+
+def create_notification(job, profile_id, profile_name, threshold):
+    """Create a notification for a high-scoring job."""
+    notification = {
+        'id': str(uuid.uuid4()),
+        'job_id': job.get('finn_code'),
+        'profile_id': profile_id,
+        'title': job.get('title', 'Unknown'),
+        'company': job.get('company', ''),
+        'score': job.get('score', 0),
+        'threshold': threshold,
+        'url': job.get('url', ''),
+        'reasoning': job.get('reasoning', ''),
+        'created_at': datetime.now().isoformat(),
+        'read': False
+    }
+
+    # Load existing notifications
+    notifications_data = load_from_s3('data/notifications.json', {'notifications': []})
+    if not isinstance(notifications_data, dict):
+        notifications_data = {'notifications': []}
+    if 'notifications' not in notifications_data:
+        notifications_data['notifications'] = []
+
+    # Add new notification at the beginning
+    notifications_data['notifications'].insert(0, notification)
+
+    # Keep only last 100 notifications
+    notifications_data['notifications'] = notifications_data['notifications'][:100]
+
+    # Save back to S3
+    save_to_s3('data/notifications.json', notifications_data)
+    print(f"    Created notification for high-scoring job (score: {job.get('score')})")
+
+    return notification
 
 
 def fetch_finn_search_results(search_url, max_jobs):
@@ -346,6 +383,7 @@ def process_profile(profile_id, profile_config, analyzed_history, api_key, run_l
     search_url = profile_config.get('search_url', '')
     profile_text = profile_config.get('profile', '')
     max_jobs = profile_config.get('max_jobs', DEFAULT_MAX_JOBS)
+    notification_threshold = profile_config.get('notification_threshold', 50)
 
     print(f"\n{'='*60}")
     print(f"Profile: {profile_name}")
@@ -458,6 +496,10 @@ def process_profile(profile_id, profile_config, analyzed_history, api_key, run_l
 
             job['score'], job['reasoning'] = analyze_job_with_claude(description, profile_text, api_key)
             print(f"    Score: {job['score']}/100 - {job['reasoning'][:50]}...")
+
+            # Create notification if score exceeds threshold
+            if job['score'] >= notification_threshold:
+                create_notification(job, profile_id, profile_name, notification_threshold)
 
             # Update job log
             job_log['status'] = 'complete'

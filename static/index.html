@@ -820,6 +820,187 @@
             .logo { font-size: 2rem; }
             .form-row { grid-template-columns: 1fr; }
         }
+
+        /* Notification Styles */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .notification-bell {
+            position: relative;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            padding: 0.625rem 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .notification-bell:hover {
+            background: var(--bg-card);
+            border-color: var(--accent);
+        }
+
+        .notification-bell svg {
+            width: 18px;
+            height: 18px;
+            fill: var(--text-secondary);
+        }
+
+        .notification-bell:hover svg {
+            fill: var(--text-primary);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: var(--error);
+            color: white;
+            font-size: 0.625rem;
+            font-weight: 600;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+        }
+
+        .notification-badge.hidden {
+            display: none;
+        }
+
+        .notification-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 380px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: none;
+        }
+
+        .notification-dropdown.open {
+            display: block;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .notification-header h3 {
+            font-family: 'Instrument Serif', serif;
+            font-size: 1.125rem;
+            font-weight: 400;
+        }
+
+        .mark-all-read {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            transition: color 0.2s ease;
+        }
+
+        .mark-all-read:hover {
+            color: var(--accent);
+        }
+
+        .notification-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .notification-item {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+
+        .notification-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .notification-item.unread {
+            background: rgba(232, 228, 221, 0.03);
+            border-left: 2px solid var(--accent);
+        }
+
+        .notification-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.375rem;
+        }
+
+        .notification-title {
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            line-height: 1.3;
+            flex: 1;
+            margin-right: 0.75rem;
+        }
+
+        .notification-score {
+            font-family: 'Instrument Serif', serif;
+            font-size: 1rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .notification-score.high {
+            background: rgba(74, 222, 128, 0.15);
+            color: var(--score-high);
+        }
+
+        .notification-score.mid {
+            background: rgba(251, 191, 36, 0.15);
+            color: var(--score-mid);
+        }
+
+        .notification-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .notification-company {
+            color: var(--text-secondary);
+        }
+
+        .notification-empty {
+            padding: 2rem;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .notification-empty-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body>
@@ -831,10 +1012,32 @@
                     <p class="tagline">FINN.no &bull; AI-Powered Job Matching</p>
                     <p class="last-updated" id="last-updated"></p>
                 </div>
-                <button class="run-btn" id="run-scanner" onclick="runScanner()">
-                    <span class="run-icon">▶</span>
-                    <span class="run-text">Run Now</span>
-                </button>
+                <div class="header-actions">
+                    <div style="position: relative;">
+                        <button class="notification-bell" id="notification-bell" onclick="toggleNotifications(event)">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
+                            </svg>
+                            <span class="notification-badge hidden" id="notification-badge">0</span>
+                        </button>
+                        <div class="notification-dropdown" id="notification-dropdown">
+                            <div class="notification-header">
+                                <h3>Notifications</h3>
+                                <button class="mark-all-read" onclick="markAllNotificationsRead(event)">Mark all read</button>
+                            </div>
+                            <div class="notification-list" id="notification-list">
+                                <div class="notification-empty">
+                                    <div class="notification-empty-icon">🔔</div>
+                                    <p>No notifications yet</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="run-btn" id="run-scanner" onclick="runScanner()">
+                        <span class="run-icon">▶</span>
+                        <span class="run-text">Run Now</span>
+                    </button>
+                </div>
             </div>
         </header>
 
@@ -972,6 +1175,8 @@
         let scoreFilter50Plus = false;
         let editingProfileId = null;
         let apiUrl = '';
+        let notificationsOpen = false;
+        let notificationPolling = null;
 
         // Load API config
         async function loadApiConfig() {
@@ -982,6 +1187,133 @@
                     apiUrl = config.apiUrl || '';
                 }
             } catch (e) { /* API config optional */ }
+        }
+
+        // Notification Functions
+        function toggleNotifications(event) {
+            event.stopPropagation();
+            notificationsOpen = !notificationsOpen;
+            const dropdown = document.getElementById('notification-dropdown');
+            dropdown.classList.toggle('open', notificationsOpen);
+
+            if (notificationsOpen) {
+                loadNotifications();
+            }
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (notificationsOpen && !e.target.closest('.notification-bell') && !e.target.closest('.notification-dropdown')) {
+                notificationsOpen = false;
+                document.getElementById('notification-dropdown').classList.remove('open');
+            }
+        });
+
+        async function loadNotifications() {
+            if (!apiUrl) return;
+
+            try {
+                const res = await fetch(`${apiUrl}/notifications`);
+                if (!res.ok) return;
+
+                const data = await res.json();
+                const notifications = data.notifications || [];
+                const unreadCount = data.unread_count || 0;
+
+                // Update badge
+                const badge = document.getElementById('notification-badge');
+                badge.textContent = unreadCount;
+                badge.classList.toggle('hidden', unreadCount === 0);
+
+                // Render notification list
+                renderNotifications(notifications);
+            } catch (e) {
+                console.error('Error loading notifications:', e);
+            }
+        }
+
+        function renderNotifications(notifications) {
+            const list = document.getElementById('notification-list');
+
+            if (notifications.length === 0) {
+                list.innerHTML = `
+                    <div class="notification-empty">
+                        <div class="notification-empty-icon">🔔</div>
+                        <p>No notifications yet</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = notifications.map(n => {
+                const scoreClass = n.score >= 70 ? 'high' : 'mid';
+                const timeAgo = formatTimeAgo(n.created_at);
+                const unreadClass = n.read ? '' : 'unread';
+
+                return `
+                    <div class="notification-item ${unreadClass}" onclick="openNotification('${n.id}', '${n.url}')">
+                        <div class="notification-item-header">
+                            <span class="notification-title">${escapeHtml(n.title)}</span>
+                            <span class="notification-score ${scoreClass}">${n.score}</span>
+                        </div>
+                        <div class="notification-meta">
+                            <span class="notification-company">${escapeHtml(n.company || 'Unknown')}</span>
+                            <span>${timeAgo}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatTimeAgo(isoString) {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 7) return `${diffDays}d ago`;
+            return date.toLocaleDateString();
+        }
+
+        async function openNotification(id, url) {
+            // Mark as read
+            if (apiUrl) {
+                try {
+                    await fetch(`${apiUrl}/notifications/${id}/read`, { method: 'PUT' });
+                    loadNotifications();
+                } catch (e) {}
+            }
+
+            // Open job URL
+            window.open(url, '_blank');
+        }
+
+        async function markAllNotificationsRead(event) {
+            event.stopPropagation();
+            if (!apiUrl) return;
+
+            try {
+                await fetch(`${apiUrl}/notifications/read-all`, { method: 'PUT' });
+                loadNotifications();
+                showToast('All notifications marked as read');
+            } catch (e) {
+                showToast('Failed to mark notifications', 'error');
+            }
+        }
+
+        function startNotificationPolling() {
+            if (!apiUrl) return;
+
+            // Initial load
+            loadNotifications();
+
+            // Poll every 30 seconds
+            notificationPolling = setInterval(loadNotifications, 30000);
         }
 
         // Run Scanner
@@ -1468,6 +1800,7 @@
                 search_url: 'https://www.finn.no/job/search?published=1',
                 minimum_score: 30,
                 max_jobs: 25,
+                notification_threshold: 50,
                 profile: '## Target Role\nDescribe the ideal role...\n\n## Key Skills\n- Skill 1\n- Skill 2'
             };
             editingProfileId = id;
@@ -1521,11 +1854,21 @@
                     <div class="form-group">
                         <label class="form-label">Minimum Score</label>
                         <input type="number" class="form-input" id="edit-min-score" value="${p.minimum_score || 30}" min="0" max="100">
+                        <p class="form-hint">Include jobs with this score or higher in reports</p>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Max Jobs per Run</label>
                         <input type="number" class="form-input" id="edit-max-jobs" value="${p.max_jobs || 25}" min="1" max="100">
                     </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Notification Threshold</label>
+                        <input type="number" class="form-input" id="edit-notification-threshold" value="${p.notification_threshold || 50}" min="0" max="100">
+                        <p class="form-hint">Get notified for jobs scoring this or higher</p>
+                    </div>
+                    <div class="form-group"></div>
                 </div>
 
                 <div class="form-group">
@@ -1556,6 +1899,7 @@
                 search_url: document.getElementById('edit-url').value.trim(),
                 minimum_score: parseInt(document.getElementById('edit-min-score').value) || 30,
                 max_jobs: parseInt(document.getElementById('edit-max-jobs').value) || 25,
+                notification_threshold: parseInt(document.getElementById('edit-notification-threshold').value) || 50,
                 profile: document.getElementById('edit-profile').value
             };
 
@@ -1603,6 +1947,7 @@
         loadApiConfig().then(() => {
             loadDashboard();
             loadReports();
+            startNotificationPolling();
         });
     </script>
 </body>

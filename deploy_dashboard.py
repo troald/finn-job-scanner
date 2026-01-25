@@ -351,7 +351,7 @@ def upload_static_files():
     ])
     print(f"  Uploaded index.html")
 
-    # Create data directory structure
+    # Create data directory structure (only creates if not exists)
     run_aws([
         "s3api", "put-object",
         "--bucket", BUCKET_NAME,
@@ -364,22 +364,41 @@ def upload_static_files():
         "--key", "data/reports/"
     ])
 
-    # Upload initial empty data files
-    empty_jobs = "{}"
-    run_aws([
-        "s3", "cp", "-",
-        f"s3://{BUCKET_NAME}/data/analyzed_jobs.json",
-        "--content-type", "application/json"
-    ], capture=False)
+    # Only create data files if they don't exist (preserve existing data)
+    existing = run_aws([
+        "s3api", "head-object",
+        "--bucket", BUCKET_NAME,
+        "--key", "data/analyzed_jobs.json"
+    ])
 
-    # Create empty reports index
-    subprocess.run(
-        ["aws", "s3", "cp", "-", f"s3://{BUCKET_NAME}/data/reports_index.json", "--content-type", "application/json"],
-        input="[]",
-        text=True
-    )
+    if not existing:
+        subprocess.run(
+            ["aws", "s3", "cp", "-", f"s3://{BUCKET_NAME}/data/analyzed_jobs.json", "--content-type", "application/json"],
+            input="{}",
+            text=True
+        )
+        print(f"  Created empty analyzed_jobs.json")
+    else:
+        print(f"  Preserved existing analyzed_jobs.json")
 
-    print(f"  Created data directory structure")
+    # Only create reports_index.json if it doesn't exist
+    existing = run_aws([
+        "s3api", "head-object",
+        "--bucket", BUCKET_NAME,
+        "--key", "data/reports_index.json"
+    ])
+
+    if not existing:
+        subprocess.run(
+            ["aws", "s3", "cp", "-", f"s3://{BUCKET_NAME}/data/reports_index.json", "--content-type", "application/json"],
+            input="[]",
+            text=True
+        )
+        print(f"  Created empty reports_index.json")
+    else:
+        print(f"  Preserved existing reports_index.json")
+
+    print(f"  Data directory structure ready")
 
 
 def save_config(domain, username, password, dist_id):
