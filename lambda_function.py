@@ -267,7 +267,7 @@ def analyze_job_with_claude(job_details, profile, api_key):
 
     try:
         response = client.messages.create(
-            model="claude-3-5-haiku-20241022",
+            model="claude-haiku-4-5-20241022",
             max_tokens=300,
             messages=[{"role": "user", "content": prompt}]
         )
