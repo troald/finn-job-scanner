@@ -1890,7 +1890,15 @@
                         <input type="number" class="form-input" id="edit-notification-threshold" value="${p.notification_threshold || 50}" min="0" max="100">
                         <p class="form-hint">Get notified for jobs scoring this or higher</p>
                     </div>
-                    <div class="form-group"></div>
+                    <div class="form-group">
+                        <label class="form-label">Price Tracking</label>
+                        <label class="toggle-switch" style="margin-top: 0.5rem;">
+                            <input type="checkbox" id="edit-track-prices" ${p.track_prices ? 'checked' : ''}>
+                            <span class="toggle-track"></span>
+                            <span>Track prices</span>
+                        </label>
+                        <p class="form-hint">Accumulate price data to improve value assessments</p>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -1928,6 +1936,7 @@
                 minimum_score: parseInt(document.getElementById('edit-min-score').value) || 30,
                 max_jobs: parseInt(document.getElementById('edit-max-jobs').value) || 25,
                 notification_threshold: parseInt(document.getElementById('edit-notification-threshold').value) || 50,
+                track_prices: document.getElementById('edit-track-prices').checked,
                 profile: document.getElementById('edit-profile').value,
                 prompt_template: document.getElementById('edit-prompt-template').value.trim()
             };

@@ -26,6 +26,7 @@ REGION = os.environ.get('AWS_REGION', 'eu-north-1')
 # Default settings
 DEFAULT_MINIMUM_SCORE = 30
 DEFAULT_MAX_JOBS = 25
+MAX_PRICE_HISTORY_ENTRIES = 500  # Per profile
 
 
 def get_api_key():
@@ -113,6 +114,134 @@ def create_notification(job, profile_id, profile_name, threshold):
     print(f"    Created notification for high-scoring job (score: {job.get('score')})")
 
     return notification
+
+
+def load_price_history(profile_id):
+    """Load price history for a profile."""
+    return load_from_s3(f'data/price_history/{profile_id}.json', {'entries': []})
+
+
+def save_price_history(profile_id, history):
+    """Save price history for a profile."""
+    # Keep only the most recent entries
+    if 'entries' in history and len(history['entries']) > MAX_PRICE_HISTORY_ENTRIES:
+        history['entries'] = history['entries'][:MAX_PRICE_HISTORY_ENTRIES]
+    save_to_s3(f'data/price_history/{profile_id}.json', history)
+
+
+def extract_price_from_text(text):
+    """Extract price from listing text (NOK)."""
+    # Look for common Norwegian price patterns
+    patterns = [
+        r'(\d[\d\s]*)\s*(?:kr|,-|nok)',  # 1000 kr, 1000,-, 1000 NOK
+        r'kr\.?\s*(\d[\d\s]*)',           # kr 1000, kr. 1000
+        r'pris[:\s]+(\d[\d\s]*)',         # pris: 1000, pris 1000
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text.lower())
+        if match:
+            price_str = match.group(1).replace(' ', '').replace('.', '')
+            try:
+                return int(price_str)
+            except ValueError:
+                continue
+    return None
+
+
+def extract_product_specs(text, title):
+    """Extract product specifications from listing text."""
+    specs = {
+        'title': title,
+        'raw_text': text[:1000] if text else '',  # Keep first 1000 chars for reference
+    }
+
+    # Common spec patterns for electronics
+    cpu_patterns = [
+        r'ryzen\s*(\d)\s*(\d{4}x?3?d?)',  # Ryzen 7 5800X, Ryzen 9 7950X3D
+        r'(i[357]-?\d{4,5}[a-z]*)',        # Intel i5-12400, i7-13700K
+    ]
+
+    for pattern in cpu_patterns:
+        match = re.search(pattern, text.lower())
+        if match:
+            specs['cpu_model'] = match.group(0).strip()
+            break
+
+    # RAM patterns
+    ram_match = re.search(r'(\d{1,3})\s*gb\s*(ram|ddr)', text.lower())
+    if ram_match:
+        specs['ram_gb'] = int(ram_match.group(1))
+
+    # GPU patterns
+    gpu_patterns = [
+        r'(rtx\s*\d{4}\s*(?:ti|super)?)',
+        r'(gtx\s*\d{4}\s*(?:ti|super)?)',
+        r'(rx\s*\d{4}\s*(?:xt)?)',
+    ]
+
+    for pattern in gpu_patterns:
+        match = re.search(pattern, text.lower())
+        if match:
+            specs['gpu_model'] = match.group(1).strip()
+            break
+
+    return specs
+
+
+def find_similar_listings(price_history, current_specs, max_results=5):
+    """Find similar listings from price history based on specs."""
+    if not price_history.get('entries'):
+        return []
+
+    similar = []
+    current_title_words = set(current_specs.get('title', '').lower().split())
+    current_cpu = current_specs.get('cpu_model', '').lower()
+
+    for entry in price_history['entries']:
+        score = 0
+        entry_title_words = set(entry.get('title', '').lower().split())
+
+        # Title word overlap
+        common_words = current_title_words & entry_title_words
+        score += len(common_words) * 2
+
+        # CPU match (high weight)
+        if current_cpu and entry.get('specs', {}).get('cpu_model', '').lower() == current_cpu:
+            score += 10
+
+        # GPU match
+        current_gpu = current_specs.get('gpu_model', '')
+        if current_gpu and entry.get('specs', {}).get('gpu_model', '') == current_gpu:
+            score += 5
+
+        if score > 2:  # Minimum similarity threshold
+            similar.append({
+                'entry': entry,
+                'similarity_score': score
+            })
+
+    # Sort by similarity and return top results
+    similar.sort(key=lambda x: x['similarity_score'], reverse=True)
+    return [s['entry'] for s in similar[:max_results]]
+
+
+def format_price_history_for_prompt(similar_listings):
+    """Format similar listings for inclusion in the AI prompt."""
+    if not similar_listings:
+        return ""
+
+    lines = ["\n## Historical Price Data (similar listings from this source):"]
+
+    for listing in similar_listings:
+        price = listing.get('price')
+        price_str = f"{price:,} NOK" if price else "price unknown"
+        date = listing.get('date', 'unknown date')
+        title = listing.get('title', 'Unknown')[:60]
+        lines.append(f"- {title}: {price_str} ({date})")
+
+    lines.append("\nUse this data to help assess if the current listing is fairly priced.\n")
+    return '\n'.join(lines)
 
 
 def fetch_finn_search_results(search_url, max_jobs):
@@ -405,6 +534,13 @@ def process_profile(profile_id, profile_config, analyzed_history, api_key, run_l
     prompt_template = profile_config.get('prompt_template', '')
     max_jobs = profile_config.get('max_jobs', DEFAULT_MAX_JOBS)
     notification_threshold = profile_config.get('notification_threshold', 50)
+    track_prices = profile_config.get('track_prices', False)
+
+    # Load price history if tracking is enabled
+    price_history = None
+    if track_prices:
+        price_history = load_price_history(profile_id)
+        print(f"  Price tracking enabled - {len(price_history.get('entries', []))} historical entries")
 
     print(f"\n{'='*60}")
     print(f"Profile: {profile_name}")
@@ -515,12 +651,48 @@ def process_profile(profile_id, profile_config, analyzed_history, api_key, run_l
             if location_match:
                 job['location'] = location_match.group(1).strip()
 
-            job['score'], job['reasoning'] = analyze_job_with_claude(description, profile_text, api_key, prompt_template)
+            # For price-tracking profiles, extract specs and find similar listings
+            price_context = ""
+            extracted_price = None
+            extracted_specs = None
+
+            if track_prices and price_history:
+                extracted_specs = extract_product_specs(description, job['title'])
+                extracted_price = extract_price_from_text(description)
+
+                if extracted_specs:
+                    similar_listings = find_similar_listings(price_history, extracted_specs)
+                    if similar_listings:
+                        price_context = format_price_history_for_prompt(similar_listings)
+                        print(f"    Found {len(similar_listings)} similar historical listings")
+
+            # Build the full description with price context if available
+            full_description = description
+            if price_context:
+                full_description = description + price_context
+
+            job['score'], job['reasoning'] = analyze_job_with_claude(full_description, profile_text, api_key, prompt_template)
             print(f"    Score: {job['score']}/100 - {job['reasoning'][:50]}...")
 
             # Create notification if score exceeds threshold
             if job['score'] >= notification_threshold:
                 create_notification(job, profile_id, profile_name, notification_threshold)
+
+            # Save to price history if tracking is enabled
+            if track_prices and price_history and (extracted_price or extracted_specs):
+                price_entry = {
+                    'finn_code': job['finn_code'],
+                    'title': job['title'],
+                    'price': extracted_price,
+                    'specs': extracted_specs,
+                    'score': job['score'],
+                    'date': datetime.now().strftime('%Y-%m-%d'),
+                    'url': job['url'],
+                }
+                price_history['entries'].insert(0, price_entry)
+                save_price_history(profile_id, price_history)
+                if extracted_price:
+                    print(f"    Saved to price history: {extracted_price:,} NOK")
 
             # Update job log
             job_log['status'] = 'complete'

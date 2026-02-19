@@ -88,6 +88,16 @@ def lambda_handler(event, context):
         # Route: POST /run - trigger scanner
         if http_method == 'POST' and '/run' in path:
             return trigger_scanner(headers)
+        # Route: GET /price-history/{profile_id}
+        elif http_method == 'GET' and '/price-history/' in path:
+            # Extract profile ID from path
+            parts = path.split('/')
+            profile_id = None
+            for i, part in enumerate(parts):
+                if part == 'price-history' and i + 1 < len(parts):
+                    profile_id = parts[i + 1]
+                    break
+            return get_price_history(profile_id, headers)
         # Route: GET /notifications
         elif http_method == 'GET' and '/notifications' in path:
             return get_notifications(headers)
@@ -277,6 +287,37 @@ def mark_all_notifications_read(headers):
             'statusCode': 200,
             'headers': headers,
             'body': json.dumps({'success': True})
+        }
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': str(e)})
+        }
+
+
+def get_price_history(profile_id, headers):
+    """Get price history for a profile."""
+    if not profile_id:
+        return {
+            'statusCode': 400,
+            'headers': headers,
+            'body': json.dumps({'error': 'Profile ID required'})
+        }
+
+    try:
+        response = s3.get_object(Bucket=BUCKET_NAME, Key=f'data/price_history/{profile_id}.json')
+        data = json.loads(response['Body'].read().decode('utf-8'))
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps(data)
+        }
+    except s3.exceptions.NoSuchKey:
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({'entries': []})
         }
     except Exception as e:
         return {

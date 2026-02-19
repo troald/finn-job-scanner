@@ -197,6 +197,15 @@ def setup_integration(api_id):
             "--target", f"integrations/{integration_id}"
         ])
 
+    # Create route for /price-history/{profile_id}
+    for method in ["GET", "OPTIONS"]:
+        run_aws([
+            "apigatewayv2", "create-route",
+            "--api-id", api_id,
+            "--route-key", f"{method} /price-history/{{profile_id}}",
+            "--target", f"integrations/{integration_id}"
+        ])
+
     # Add Lambda permission
     run_aws([
         "lambda", "add-permission",
@@ -363,6 +372,9 @@ API Endpoints:
 
   {api_url}/notifications/{{id}}/read
     PUT  - Mark single notification as read
+
+  {api_url}/price-history/{{profile_id}}
+    GET  - Get price history for a profile
 
 Test with:
   curl {api_url}/profiles
