@@ -234,11 +234,7 @@ def fetch_job_details(job_url):
         return None
 
 
-def analyze_job_with_claude(job_details, profile, api_key):
-    """Use Claude API to analyze job fit."""
-    client = anthropic.Anthropic(api_key=api_key)
-
-    prompt = f"""Analyze this job listing against the candidate's profile and provide a match score from 0-100.
+DEFAULT_PROMPT_TEMPLATE = """Analyze this job listing against the candidate's profile and provide a match score from 0-100.
 
 ## Candidate Profile:
 {profile}
@@ -264,6 +260,17 @@ def analyze_job_with_claude(job_details, profile, api_key):
 ## Response Format (JSON only, no other text):
 {{"score": <number>, "reasoning": "<brief explanation>"}}
 """
+
+
+def analyze_job_with_claude(job_details, profile, api_key, prompt_template=None):
+    """Use Claude API to analyze job fit."""
+    client = anthropic.Anthropic(api_key=api_key)
+
+    # Use custom prompt template or default
+    template = prompt_template if prompt_template else DEFAULT_PROMPT_TEMPLATE
+
+    # Replace placeholders in template
+    prompt = template.format(profile=profile, job_details=job_details)
 
     try:
         response = client.messages.create(
@@ -382,6 +389,7 @@ def process_profile(profile_id, profile_config, analyzed_history, api_key, run_l
     profile_name = profile_config.get('name', profile_id)
     search_url = profile_config.get('search_url', '')
     profile_text = profile_config.get('profile', '')
+    prompt_template = profile_config.get('prompt_template', '')
     max_jobs = profile_config.get('max_jobs', DEFAULT_MAX_JOBS)
     notification_threshold = profile_config.get('notification_threshold', 50)
 
@@ -494,7 +502,7 @@ def process_profile(profile_id, profile_config, analyzed_history, api_key, run_l
             if location_match:
                 job['location'] = location_match.group(1).strip()
 
-            job['score'], job['reasoning'] = analyze_job_with_claude(description, profile_text, api_key)
+            job['score'], job['reasoning'] = analyze_job_with_claude(description, profile_text, api_key, prompt_template)
             print(f"    Score: {job['score']}/100 - {job['reasoning'][:50]}...")
 
             # Create notification if score exceeds threshold

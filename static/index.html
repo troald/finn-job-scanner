@@ -1894,9 +1894,15 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Scoring Criteria / Prompt</label>
-                    <textarea class="form-textarea" id="edit-profile">${escapeHtml(p.profile || '')}</textarea>
+                    <label class="form-label">Candidate Profile</label>
+                    <textarea class="form-textarea" id="edit-profile" style="min-height:150px;">${escapeHtml(p.profile || '')}</textarea>
                     <p class="form-hint">Describe the ideal candidate, skills to match, location preferences, etc.</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Full Prompt Template (Advanced - Optional)</label>
+                    <textarea class="form-textarea" id="edit-prompt-template" style="min-height:250px;">${escapeHtml(p.prompt_template || '')}</textarea>
+                    <p class="form-hint">Leave empty for default. Use <code>{profile}</code> and <code>{job_details}</code> as placeholders. Must output JSON with "score" and "reasoning" fields.</p>
                 </div>
 
                 <div class="form-actions">
@@ -1922,7 +1928,8 @@
                 minimum_score: parseInt(document.getElementById('edit-min-score').value) || 30,
                 max_jobs: parseInt(document.getElementById('edit-max-jobs').value) || 25,
                 notification_threshold: parseInt(document.getElementById('edit-notification-threshold').value) || 50,
-                profile: document.getElementById('edit-profile').value
+                profile: document.getElementById('edit-profile').value,
+                prompt_template: document.getElementById('edit-prompt-template').value.trim()
             };
 
             if (newId !== oldId) {
