@@ -148,12 +148,20 @@ def fetch_finn_search_results(search_url, max_jobs):
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, 'html.parser')
-        job_links = soup.find_all('a', href=re.compile(r'/job/ad/\d+'))
+        # Match various FINN.no listing patterns:
+        # - Jobs: /job/ad/123
+        # - Torget/marketplace: /bap/forsale/ad.html?finnkode=123
+        # - Cars: /car/used/ad.html?finnkode=123
+        # - Real estate: /realestate/homes/ad.html?finnkode=123
+        job_links = soup.find_all('a', href=re.compile(r'/(job/ad/\d+|bap/forsale/ad\.html\?finnkode=\d+|car/used/ad\.html\?finnkode=\d+|realestate/\w+/ad\.html\?finnkode=\d+)'))
 
         jobs_on_page = 0
         for link in job_links:
             href = link.get('href', '')
+            # Extract finn_code from various URL patterns
             match = re.search(r'/job/ad/(\d+)', href)
+            if not match:
+                match = re.search(r'finnkode=(\d+)', href)
             if match:
                 finn_code = match.group(1)
                 if finn_code in seen_codes:
@@ -161,7 +169,11 @@ def fetch_finn_search_results(search_url, max_jobs):
                 seen_codes.add(finn_code)
 
                 title = link.get_text(strip=True) or "Unknown Title"
-                full_url = f"https://www.finn.no/job/ad/{finn_code}"
+                # Construct full URL - use the href directly if it's a full path
+                if href.startswith('http'):
+                    full_url = href
+                else:
+                    full_url = f"https://www.finn.no{href.split('?')[0]}?finnkode={finn_code}"
 
                 all_jobs.append({
                     'finn_code': finn_code,
