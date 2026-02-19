@@ -151,9 +151,10 @@ def fetch_finn_search_results(search_url, max_jobs):
         # Match various FINN.no listing patterns:
         # - Jobs: /job/ad/123
         # - Torget/marketplace: /bap/forsale/ad.html?finnkode=123
+        # - Recommerce: /recommerce/forsale/ad.html?finnkode=123
         # - Cars: /car/used/ad.html?finnkode=123
         # - Real estate: /realestate/homes/ad.html?finnkode=123
-        job_links = soup.find_all('a', href=re.compile(r'/(job/ad/\d+|bap/forsale/ad\.html\?finnkode=\d+|car/used/ad\.html\?finnkode=\d+|realestate/\w+/ad\.html\?finnkode=\d+)'))
+        job_links = soup.find_all('a', href=re.compile(r'/(job/ad/\d+|bap/forsale/ad\.html\?finnkode=\d+|recommerce/forsale/ad\.html\?finnkode=\d+|car/used/ad\.html\?finnkode=\d+|realestate/\w+/ad\.html\?finnkode=\d+)'))
 
         jobs_on_page = 0
         for link in job_links:
